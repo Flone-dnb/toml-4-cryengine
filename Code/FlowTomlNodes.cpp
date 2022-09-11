@@ -1,6 +1,7 @@
 #include "StdAfx.h"
 #include "FlowTomlNodes.h"
 #include "Plugin.h"
+#include <ILevelSystem.h>
 
 #include "External/toml11/toml.hpp"
 
@@ -108,7 +109,7 @@ void CFlowTomlNode_SetValue::ProcessEvent(EFlowEvent evt, SActivationInfo* pActI
                 return;
             }
 
-            // Check if key is not empty.
+            // Check if key is empty.
             if (keyName.empty())
             {
                 CryWarning(
@@ -121,11 +122,11 @@ void CFlowTomlNode_SetValue::ProcessEvent(EFlowEvent evt, SActivationInfo* pActI
             // Set value to TOML data.
             if (sectionName.empty())
             {
-                pTomlData->operator[](keyName.data()) = toml::value(value);
+                pTomlData->operator[](keyName.data()) = toml::value(std::string(value));
             }
             else 
             {
-                pTomlData->operator[](sectionName.data()).operator[](keyName.data()) = toml::value(value);
+                pTomlData->operator[](sectionName.data()).operator[](keyName.data()) = toml::value(std::string(value));
             }
 
             // Trigger output pin.
@@ -141,6 +142,155 @@ void CFlowTomlNode_SetValue::GetMemoryUsage(ICrySizer* s) const
 }
 
 const char* CFlowTomlNode_SetValue::GetNodeName()
+{
+    return m_nodeName;
+}
+
+void CFlowTomlNode_SaveDocument::GetConfiguration(SFlowNodeConfig& config)
+{
+    static const SInputPortConfig in_config[] = {
+        InputPortConfig<int>("Document ID",  _HELP("Document to save.")),
+        InputPortConfig<string>("File Name", _HELP("Name of the file without \".toml\" extension for the document.")),
+        InputPortConfig<int>("Location", 0, _HELP("Local directory to save the document to."), 0, m_tomlFileLocationEnum),
+        InputPortConfig<bool>("Overwrite", true,  _HELP("Value to set.")),
+        { 0 }
+    };
+    static const SOutputPortConfig out_config[] = {
+        OutputPortConfig_Void("Done", _HELP("Executed if successfully finished the operation.")),
+        OutputPortConfig_Void("Document Not Found", _HELP("Executed when the specified document ID is incorrect.")),
+        OutputPortConfig_Void("Failed To Get Current Level", _HELP("Executed when location is Map and we failed to get current level.")),
+        OutputPortConfig_Void("Unable To Create File", _HELP("Executed when failed to create/open the output file.")),
+        { 0 }
+    };
+    config.sDescription = _HELP("Saves TOML document to file. Use NewDocument to get document ID.");
+    config.pInputPorts = in_config;
+    config.pOutputPorts = out_config;
+    config.SetCategory(EFLN_APPROVED);
+}
+
+void CFlowTomlNode_SaveDocument::ProcessEvent(EFlowEvent evt, SActivationInfo* pActInfo)
+{
+    switch (evt)
+    {
+    case eFE_Activate:
+        if (IsPortActive(pActInfo, static_cast<int>(EInputs::DocumentId)))
+        {
+            // Get plugin instance.
+            const auto pPluginInstance = CToml4CryenginePlugin::GetInstance();
+            if (!pPluginInstance)
+            {
+                CryFatalError("Plugin is not initialized.");
+                return;
+            }
+
+            // See if this document exists.
+            int documentId = GetPortInt(pActInfo, static_cast<int>(EInputs::DocumentId));
+            const auto pTomlData = pPluginInstance->GetTomlData(documentId);
+            if (!pTomlData)
+            {
+                ActivateOutput(pActInfo, static_cast<int>(EOutputs::DocumentNotFound), 0);
+                return;
+            }
+
+            // Check if TOML data is empty.
+            if (pTomlData->is_uninitialized())
+            {
+                CryWarning(
+                    VALIDATOR_MODULE_FLOWGRAPH,
+                    VALIDATOR_WARNING,
+                    "The specified TOML document is empty, nothing to save (document %d).", documentId);
+                return;
+            }
+
+            // Get inputs.
+            const auto fileName = GetPortString(pActInfo, static_cast<int>(EInputs::FileName));
+            const auto location = GetPortInt(pActInfo, static_cast<int>(EInputs::Location));
+            const auto bOverwrite = GetPortBool(pActInfo, static_cast<int>(EInputs::Overwrite));
+
+            // Check if file name is empty.
+            if (fileName.empty())
+            {
+                CryWarning(
+                    VALIDATOR_MODULE_FLOWGRAPH,
+                    VALIDATOR_WARNING,
+                    "The specified file name cannot be empty, unable to save document (document %d).", documentId);
+                return;
+            }
+
+            // Qualify path.
+            string savePath;
+            switch (location)
+            {
+            case ETomlFileLocation::MAP:
+            {
+                if (gEnv->IsEditor())
+                {
+                    char* levelName;
+                    char* levelPath;
+                    gEnv->pGameFramework->GetEditorLevel(&levelName, &levelPath);
+                    savePath = levelPath;
+                }
+                else
+                {
+                    ILevelInfo* pLevel = gEnv->pGameFramework->GetILevelSystem()->GetCurrentLevel();
+                    if (pLevel)
+                    {
+                        savePath = pLevel->GetPath();
+                    }
+                    else
+                    {
+                        ActivateOutput(pActInfo, static_cast<int>(EOutputs::FailedToGetCurrentLevel), 0);
+                        return;
+                    }
+                }
+            }
+            break;
+            case ETomlFileLocation::GAME:
+            {
+                savePath = PathUtil::GetGameFolder();
+            }
+            break;
+            case ETomlFileLocation::USER:
+            {
+                savePath = "%USER%/";
+            }
+            break;
+            }
+
+            savePath = PathUtil::Make(savePath.c_str(), fileName, ".toml");
+
+            // Check if we need to overwrite the file.
+            ICryPak* pPak = gEnv->pCryPak;
+            if (bOverwrite || !pPak->IsFileExist(savePath.c_str()))
+            {
+                std::ofstream outFile(savePath, std::ios::binary);
+                if (!outFile.is_open()) {
+                    CryWarning(
+                        VALIDATOR_MODULE_FLOWGRAPH,
+                        VALIDATOR_WARNING,
+                        "Unable to create/open file %s, unable to save document (document %d).", savePath.c_str(), documentId);
+                    ActivateOutput(pActInfo, static_cast<int>(EOutputs::UnableToCreateFile), 0);
+                    return;
+                }
+                outFile << *pTomlData;
+                outFile.close();
+
+                CryLogAlways("Saved TOML document at %s", savePath.c_str());
+            }
+
+            // Trigger output pin.
+            ActivateOutput(pActInfo, static_cast<int>(EOutputs::Done), 0);
+        }
+        break;
+    }
+}
+
+void CFlowTomlNode_SaveDocument::GetMemoryUsage(ICrySizer* s) const
+{
+    s->Add(*this);
+}
+
+const char* CFlowTomlNode_SaveDocument::GetNodeName()
 {
     return m_nodeName;
 }
