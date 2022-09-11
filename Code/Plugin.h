@@ -1,6 +1,8 @@
 // Copyright 2016-2018 Crytek GmbH / Crytek Group. All rights reserved.
 #pragma once
 
+#include <unordered_map>
+#include <mutex>
 #include <CrySystem/ICryPlugin.h>
 #include <CryGame/IGameFramework.h>
 #include <CryEntitySystem/IEntityClass.h>
@@ -23,6 +25,11 @@ public:
 	//! 
 	//! \return Instance of this class.
 	static CToml4CryenginePlugin* GetInstance();
+
+	//! Registers a new TOML document and returns this document's unique ID.
+	//! 
+	//! \return New document ID.
+	int registerNewTomlDocument();
 	
 	// Cry::IEnginePlugin
 	virtual bool Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override;
@@ -32,8 +39,16 @@ public:
 	virtual void OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam) override;
 	// ~ISystemEventListener
 
-	//! Current TOML data.
-	toml::value m_currentTomlData;
+private:
+
+	//! Created but not saved yet TOML documents.
+	std::unordered_map<size_t, toml::value> m_tomlDocuments;
+
+	//! ID for the next created TOML document.
+	int m_nextTomlDocumentId = 0;
+
+	//! Mutex for read/write operations on TOML documents and IDs.
+	std::mutex m_mtxTomlDocuments;
 
 	// Include Flownode registering and unregistering (just needs to be included once in total).
 	PLUGIN_FLOWNODE_REGISTER

@@ -33,6 +33,20 @@ CToml4CryenginePlugin::~CToml4CryenginePlugin()
 	g_pInstance = nullptr;
 }
 
+int CToml4CryenginePlugin::registerNewTomlDocument()
+{
+	std::scoped_lock guard(m_mtxTomlDocuments);
+
+	// Get new document ID.
+	int newDocumentId = m_nextTomlDocumentId;
+	m_nextTomlDocumentId += 1;
+
+	// Create a fresh TOML object.
+	m_tomlDocuments[newDocumentId] = toml::value();
+
+	return newDocumentId;
+}
+
 bool CToml4CryenginePlugin::Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams)
 {
 	gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this ,"CToml4CryenginePlugin");

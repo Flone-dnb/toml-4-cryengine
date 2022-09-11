@@ -7,14 +7,14 @@
 void CFlowNewDocument::GetConfiguration(SFlowNodeConfig& config)
 {
     static const SInputPortConfig in_config[] = {
-            InputPortConfig_Void("New",  _HELP("Clears any added TOML data and initializes a new TOML structure.")),
+            InputPortConfig_Void("New",  _HELP("Initializes a new TOML structure.")),
         { 0 }
     };
     static const SOutputPortConfig out_config[] = {
-        OutputPortConfig_Void("Out"),
+        OutputPortConfig<int>("Document ID", _HELP("Unique identifier for this document.")),
         { 0 }
     };
-    config.sDescription = _HELP("Clears any added TOML data and initializes a new TOML structure.");
+    config.sDescription = _HELP("Initializes a new TOML structure.");
     config.pInputPorts = in_config;
     config.pOutputPorts = out_config;
     config.SetCategory(EFLN_APPROVED);
@@ -25,7 +25,7 @@ void CFlowNewDocument::ProcessEvent(EFlowEvent evt, SActivationInfo* pActInfo)
     switch (evt)
     {
     case eFE_Activate:
-        if (IsPortActive(pActInfo, 0))
+        if (IsPortActive(pActInfo, static_cast<int>(EInputs::NewDocument)))
         {
             const auto pConfigurationInstance = CToml4CryenginePlugin::GetInstance();
             if (!pConfigurationInstance)
@@ -34,10 +34,7 @@ void CFlowNewDocument::ProcessEvent(EFlowEvent evt, SActivationInfo* pActInfo)
                 return;
             }
 
-            // Replace with a fresh object.
-            pConfigurationInstance->m_currentTomlData = toml::value();
-
-            ActivateOutput(pActInfo, 0, 0);
+            ActivateOutput(pActInfo, static_cast<int>(EOutputs::DocumentId), pConfigurationInstance->registerNewTomlDocument());
         }
         break;
     }
@@ -46,4 +43,9 @@ void CFlowNewDocument::ProcessEvent(EFlowEvent evt, SActivationInfo* pActInfo)
 void CFlowNewDocument::GetMemoryUsage(ICrySizer* s) const
 {
     s->Add(*this);
+}
+
+const char* CFlowNewDocument::GetNodeName()
+{
+    return m_nodeName;
 }
