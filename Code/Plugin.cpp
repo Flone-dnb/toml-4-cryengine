@@ -33,7 +33,7 @@ CToml4CryenginePlugin::~CToml4CryenginePlugin()
 	g_pInstance = nullptr;
 }
 
-int CToml4CryenginePlugin::registerNewTomlDocument()
+int CToml4CryenginePlugin::RegisterNewTomlDocument()
 {
 	std::scoped_lock guard(m_mtxTomlDocuments);
 
@@ -45,6 +45,18 @@ int CToml4CryenginePlugin::registerNewTomlDocument()
 	m_tomlDocuments[newDocumentId] = toml::value();
 
 	return newDocumentId;
+}
+
+toml::value* CToml4CryenginePlugin::GetTomlData(int DocumentId) {
+	std::scoped_lock guard(m_mtxTomlDocuments);
+
+	const auto it = m_tomlDocuments.find(DocumentId);
+	if (it == m_tomlDocuments.end())
+	{
+		return nullptr;
+	}
+
+	return &it->second;
 }
 
 bool CToml4CryenginePlugin::Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams)

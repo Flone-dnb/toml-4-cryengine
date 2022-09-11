@@ -29,7 +29,14 @@ public:
 	//! Registers a new TOML document and returns this document's unique ID.
 	//! 
 	//! \return New document ID.
-	int registerNewTomlDocument();
+	int RegisterNewTomlDocument();
+
+	//! Returns document's TOML data.
+	//! 
+	//! \param DocumentId Document for which to get TOML data.
+	//! 
+	//! \return nullptr if no document was registered for the specified ID, valid pointer otherwise.
+	toml::value* GetTomlData(int DocumentId);
 	
 	// Cry::IEnginePlugin
 	virtual bool Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override;
