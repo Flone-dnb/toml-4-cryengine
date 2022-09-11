@@ -1,5 +1,6 @@
 #include "StdAfx.h"
-#include "Toml.h"
+#include "FlowTomlFileNodes.h"
+#include "Plugin.h"
 
 #include "External/toml11/toml.hpp"
 

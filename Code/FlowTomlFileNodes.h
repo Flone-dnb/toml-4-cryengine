@@ -2,10 +2,6 @@
 
 #include <CryGame/IGameFramework.h>
 
-class CToml {
-
-};
-
 class CFlowNewDocument : public CFlowBaseNode<eNCT_Singleton>
 {
 public:
