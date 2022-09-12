@@ -1,6 +1,6 @@
 // Copyright 2016-2017 Crytek GmbH / Crytek Group. All rights reserved.
 #include "StdAfx.h"
-#include "Plugin.h"
+#include "Toml4CryenginePlugin.h"
 
 #include <CrySchematyc/Env/IEnvRegistry.h>
 #include <CrySchematyc/Env/EnvPackage.h>

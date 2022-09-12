@@ -1,6 +1,6 @@
 #include "StdAfx.h"
 #include "FlowTomlNodes.h"
-#include "Plugin.h"
+#include "Toml4CryenginePlugin.h"
 #include <ILevelSystem.h>
 
 #include "External/toml11/toml.hpp"
