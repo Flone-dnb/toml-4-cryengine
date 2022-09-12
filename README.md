@@ -2,13 +2,13 @@
 
 TODO: add screenshot
 
-This plugin adds new Flow Graph nodes for working with TOML files.
+This plugin adds new Flow Graph nodes and C++ functions for working with TOML files.
 
 # Building
 
 Generate CRYENGINE solution, select `Toml4Cryengine` target and compile it.
 
-# How to use
+# How to use Flow Graph nodes
 
 - Build plugin (see previous section).
 - Copy `Toml4Cryengine.dll` from `bin/win_x64` directory to you project's `bin/win_x64` directory.
@@ -27,3 +27,9 @@ so your section will look like this:
 	{ ... }
 ]
 ```
+
+# How to use C++ functions
+
+- Copy directory `TomlManager` from `Code` directory to your project's `Code` directory.
+- Regenerate CRYENGINE solution.
+- You can now create `CTomlManager` object and use its functions.
