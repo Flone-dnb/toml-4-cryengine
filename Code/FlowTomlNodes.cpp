@@ -151,18 +151,18 @@ void CFlowTomlNode_SaveDocument::GetConfiguration(SFlowNodeConfig& config)
     static const SInputPortConfig in_config[] = {
         InputPortConfig<int>("DocumentID",  _HELP("Document to save."), "Document ID"),
         InputPortConfig<string>("FileName", _HELP("Name of the file without \".toml\" extension for the document."), "File Name"),
-        InputPortConfig<int>("Location", 0, _HELP("Local directory to save the document to."), "Location", m_tomlFileLocationEnum),
+        InputPortConfig<string>("DirectoryName", _HELP("Usually your game name. Directory for file (will be appended to the base path)."), "Directory Name"),
         InputPortConfig<bool>("Overwrite", true,  _HELP("Value to set."), "Overwrite"),
         { 0 }
     };
     static const SOutputPortConfig out_config[] = {
         OutputPortConfig_Void("Done", _HELP("Executed if successfully finished the operation."), "Done"),
         OutputPortConfig_Void("DocumentNotFound", _HELP("Executed when the specified document ID is incorrect."), "Document Not Found"),
-        OutputPortConfig_Void("FailedToGetCurrentLevel", _HELP("Executed when location is Map and we failed to get current level."), "Failed To Get Current Level"),
+        OutputPortConfig_Void("FailedToGetBasePath", _HELP("Executed when failed to get base path."), "Failed To Get Base Path"),
         OutputPortConfig_Void("UnableToCreateFile", _HELP("Executed when failed to create/open the output file."), "Unable To Create File"),
         { 0 }
     };
-    config.sDescription = _HELP("Saves TOML document to file. Use NewDocument to get document ID.");
+    config.sDescription = _HELP("Saves TOML document to file, base path is \"%localappdata%\" on Windows, \"%HOME%/.config\" on Linux. Use NewDocument to get document ID.");
     config.pInputPorts = in_config;
     config.pOutputPorts = out_config;
     config.SetCategory(EFLN_APPROVED);
@@ -204,7 +204,7 @@ void CFlowTomlNode_SaveDocument::ProcessEvent(EFlowEvent evt, SActivationInfo* p
 
             // Get inputs.
             const auto fileName = GetPortString(pActInfo, static_cast<int>(EInputs::FileName));
-            const auto location = GetPortInt(pActInfo, static_cast<int>(EInputs::Location));
+            const auto directoryName = GetPortString(pActInfo, static_cast<int>(EInputs::DirectoryName));
             const auto bOverwrite = GetPortBool(pActInfo, static_cast<int>(EInputs::Overwrite));
 
             // Check if file name is empty.
@@ -217,65 +217,50 @@ void CFlowTomlNode_SaveDocument::ProcessEvent(EFlowEvent evt, SActivationInfo* p
                 return;
             }
 
-            // Qualify path.
-            string savePath;
-            switch (location)
+            // Check if directory name is empty.
+            if (directoryName.empty())
             {
-            case ETomlFileLocation::MAP:
-            {
-                if (gEnv->IsEditor())
-                {
-                    char* levelName;
-                    char* levelPath;
-                    gEnv->pGameFramework->GetEditorLevel(&levelName, &levelPath);
-                    savePath = levelPath;
-                }
-                else
-                {
-                    ILevelInfo* pLevel = gEnv->pGameFramework->GetILevelSystem()->GetCurrentLevel();
-                    if (pLevel)
-                    {
-                        savePath = pLevel->GetPath();
-                    }
-                    else
-                    {
-                        ActivateOutput(pActInfo, static_cast<int>(EOutputs::FailedToGetCurrentLevel), 0);
-                        return;
-                    }
-                }
-            }
-            break;
-            case ETomlFileLocation::GAME:
-            {
-                savePath = PathUtil::GetGameFolder();
-            }
-            break;
-            case ETomlFileLocation::USER:
-            {
-                savePath = "%USER%/";
-            }
-            break;
+                CryWarning(
+                    VALIDATOR_MODULE_FLOWGRAPH,
+                    VALIDATOR_WARNING,
+                    "The specified directory name cannot be empty, unable to save document (document %d).", documentId);
+                return;
             }
 
-            savePath = PathUtil::Make(savePath.c_str(), fileName, ".toml");
+            // Get base directory to store configs.
+            const auto optionalBasePath = pPluginInstance->GetDirectoryForConfigs();
+            if (!optionalBasePath.has_value())
+            {
+                ActivateOutput(pActInfo, static_cast<int>(EOutputs::FailedToGetBasePath), 0);
+                return;
+            }
+
+            // Construct directory path.
+            const auto directoryPath
+                = optionalBasePath.value() / std::string(directoryName);
+            if (!std::filesystem::exists(directoryPath)) {
+                std::filesystem::create_directories(directoryPath);
+            }
+
+            // Construct file path.
+            const auto filePath = directoryPath / (std::string(fileName) + ".toml");
 
             // Check if we need to overwrite the file.
-            ICryPak* pPak = gEnv->pCryPak;
-            if (bOverwrite || !pPak->IsFileExist(savePath.c_str()))
+            if (bOverwrite || !std::filesystem::exists(filePath))
             {
-                std::ofstream outFile(savePath, std::ios::binary);
+                std::ofstream outFile(filePath, std::ios::binary);
                 if (!outFile.is_open()) {
                     CryWarning(
                         VALIDATOR_MODULE_FLOWGRAPH,
                         VALIDATOR_WARNING,
-                        "Unable to create/open file %s, unable to save document (document %d).", savePath.c_str(), documentId);
+                        "Unable to create/open file \"%s\", unable to save document (document %d).", filePath.string().c_str(), documentId);
                     ActivateOutput(pActInfo, static_cast<int>(EOutputs::UnableToCreateFile), 0);
                     return;
                 }
                 outFile << *pTomlData;
                 outFile.close();
 
-                CryLogAlways("Saved TOML document at %s", savePath.c_str());
+                CryLogAlways("[%s]: saved TOML document at \"%s\"", pPluginInstance->GetName(), filePath.string().c_str());
             }
 
             // Trigger output pin.

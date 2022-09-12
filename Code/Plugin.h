@@ -3,6 +3,8 @@
 
 #include <unordered_map>
 #include <mutex>
+#include <optional>
+#include <filesystem>
 #include <CrySystem/ICryPlugin.h>
 #include <CryGame/IGameFramework.h>
 #include <CryEntitySystem/IEntityClass.h>
@@ -37,9 +39,16 @@ public:
 	//! 
 	//! \return nullptr if no document was registered for the specified ID, valid pointer otherwise.
 	toml::value* GetTomlData(int DocumentId);
+
+	//! Returns directory path to store config files.
+	//! 
+	//! \return Empty if something went wrong (see logs), otherwise directory path,
+	//! "%localappdata%" on Windows, "%HOME%/.config" on Linux.
+	std::optional<std::filesystem::path> GetDirectoryForConfigs();
 	
 	// Cry::IEnginePlugin
 	virtual bool Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override;
+	virtual const char* GetName() const override;
 	// ~Cry::IEnginePlugin
 	
 	// ISystemEventListener
@@ -47,6 +56,9 @@ public:
 	// ~ISystemEventListener
 
 private:
+
+	//! Plugin name.
+	static inline const char* m_pluginName = "TOML4CRYENGINE";
 
 	//! Created but not saved yet TOML documents.
 	std::unordered_map<size_t, toml::value> m_tomlDocuments;

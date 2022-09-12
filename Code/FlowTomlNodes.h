@@ -113,7 +113,7 @@ private:
     {
         DocumentId = 0,
         FileName,
-        Location,
+        DirectoryName,
         Overwrite,
     };
 
@@ -122,18 +122,8 @@ private:
     {
         Done = 0,
         DocumentNotFound,
-        FailedToGetCurrentLevel,
+        FailedToGetBasePath,
         UnableToCreateFile,
-    };
-
-    //! Enumeration for Location input pin.
-    const char* m_tomlFileLocationEnum = "enum_int:Map=0,Game=1,Root=2,User=3";
-    enum ETomlFileLocation : int
-    {
-        MAP = 0,
-        GAME,
-        ROOT,
-        USER,
     };
 };
 

@@ -6,6 +6,17 @@
 #include <CrySchematyc/Env/EnvPackage.h>
 #include <CrySchematyc/Utils/SharedString.h>
 
+#if defined(WIN32)
+#include <ShlObj.h>
+#include <Shlwapi.h>
+#pragma comment(lib, "Shlwapi.lib")
+#elif __linux__
+#include <unistd.h>
+#include <sys/types.h>
+#include <cstddef>
+#include <cstdlib>
+#endif
+
 // Included only once per DLL module.
 #include <CryCore/Platform/platform_impl.inl>
 
@@ -57,6 +68,50 @@ toml::value* CToml4CryenginePlugin::GetTomlData(int DocumentId) {
 	}
 
 	return &it->second;
+}
+
+const char* CToml4CryenginePlugin::GetName() const
+{
+	return m_pluginName;
+}
+
+std::optional<std::filesystem::path> CToml4CryenginePlugin::GetDirectoryForConfigs()
+{
+	std::filesystem::path directoryPath;
+
+#if defined(WIN32)
+
+	// Try to get AppData folder.
+	PWSTR pathTmp;
+	const HRESULT result = SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, &pathTmp);
+	if (result != S_OK) {
+		CoTaskMemFree(pathTmp);
+
+		CryLogAlways("[%s]: failed to get directory for configs, error code: %ld", GetName(), result);
+		return {};
+	}
+
+	directoryPath = pathTmp;
+
+	CoTaskMemFree(pathTmp);
+
+#elif __linux__
+
+	const auto sHomePath = std::string(getenv("HOME"));
+	if (sHomePath.empty()) {
+		CryLogAlways("[%s]: environment variable HOME is not set", GetName());
+		return {};
+	}
+
+	directoryPath = sHomePath + "/.config/";
+
+#endif
+
+	if (!std::filesystem::exists(directoryPath)) {
+		std::filesystem::create_directories(directoryPath);
+	}
+
+	return directoryPath;
 }
 
 bool CToml4CryenginePlugin::Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams)
