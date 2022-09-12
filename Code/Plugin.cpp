@@ -105,6 +105,10 @@ std::optional<std::filesystem::path> CToml4CryenginePlugin::GetDirectoryForConfi
 
 	directoryPath = sHomePath + "/.config/";
 
+#else
+
+	static_assert(false, "not implemented");
+
 #endif
 
 	if (!std::filesystem::exists(directoryPath)) {
