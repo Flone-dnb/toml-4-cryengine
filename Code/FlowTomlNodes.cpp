@@ -12,7 +12,7 @@ void CFlowTomlNode_NewDocument::GetConfiguration(SFlowNodeConfig& config)
         { 0 }
     };
     static const SOutputPortConfig out_config[] = {
-        OutputPortConfig<int>("Document ID", _HELP("Unique identifier for this document.")),
+        OutputPortConfig<int>("DocumentID", _HELP("Unique identifier for this document."), "Document ID"),
         { 0 }
     };
     config.sDescription = _HELP("Initializes a new TOML structure.");
@@ -56,16 +56,16 @@ const char* CFlowTomlNode_NewDocument::GetNodeName()
 void CFlowTomlNode_SetValue::GetConfiguration(SFlowNodeConfig& config)
 {
     static const SInputPortConfig in_config[] = {
-        InputPortConfig<int>("Document ID",  _HELP("Document to set new value to.")),
-        InputPortConfig<string>("Section Name",  _HELP("[Optional] Name of the section to set the value to.")),
-        InputPortConfig<string>("Key",  _HELP("Name of the key for the value.")),
-        InputPortConfig_Void("Value",  _HELP("Value to set.")),
+        InputPortConfig<int>("DocumentID",  _HELP("Document to set new value to."), "Document ID"),
+        InputPortConfig<string>("SectionName",  _HELP("[Optional] Name of the section to set the value to."), "Section Name"),
+        InputPortConfig<string>("Key",  _HELP("Name of the key for the value."), "Key"),
+        InputPortConfig_Void("Value",  _HELP("Value to set."), "Value"),
         { 0 }
     };
     static const SOutputPortConfig out_config[] = {
-        OutputPortConfig<int>("Document ID", _HELP("Executed when the value is set successfully. Unique identifier of the document.")),
-        OutputPortConfig_Void("Document Not Found", _HELP("Executed when the specified document ID is incorrect.")),
-        OutputPortConfig_Void("Failed To Convert Value", _HELP("Executed when failed to convert the specified value to string.")),
+        OutputPortConfig<int>("DocumentID", _HELP("Executed when the value is set successfully. Unique identifier of the document."), "Document ID"),
+        OutputPortConfig_Void("DocumentNotFound", _HELP("Executed when the specified document ID is incorrect."), "Document Not Found"),
+        OutputPortConfig_Void("FailedToConvertValue", _HELP("Executed when failed to convert the specified value to string."), "Failed To Convert Value"),
         { 0 }
     };
     config.sDescription = _HELP("Sets a value to TOML document. Use NewDocument to get document ID.");
@@ -149,17 +149,17 @@ const char* CFlowTomlNode_SetValue::GetNodeName()
 void CFlowTomlNode_SaveDocument::GetConfiguration(SFlowNodeConfig& config)
 {
     static const SInputPortConfig in_config[] = {
-        InputPortConfig<int>("Document ID",  _HELP("Document to save.")),
-        InputPortConfig<string>("File Name", _HELP("Name of the file without \".toml\" extension for the document.")),
-        InputPortConfig<int>("Location", 0, _HELP("Local directory to save the document to."), 0, m_tomlFileLocationEnum),
-        InputPortConfig<bool>("Overwrite", true,  _HELP("Value to set.")),
+        InputPortConfig<int>("DocumentID",  _HELP("Document to save."), "Document ID"),
+        InputPortConfig<string>("FileName", _HELP("Name of the file without \".toml\" extension for the document."), "File Name"),
+        InputPortConfig<int>("Location", 0, _HELP("Local directory to save the document to."), "Location", m_tomlFileLocationEnum),
+        InputPortConfig<bool>("Overwrite", true,  _HELP("Value to set."), "Overwrite"),
         { 0 }
     };
     static const SOutputPortConfig out_config[] = {
-        OutputPortConfig_Void("Done", _HELP("Executed if successfully finished the operation.")),
-        OutputPortConfig_Void("Document Not Found", _HELP("Executed when the specified document ID is incorrect.")),
-        OutputPortConfig_Void("Failed To Get Current Level", _HELP("Executed when location is Map and we failed to get current level.")),
-        OutputPortConfig_Void("Unable To Create File", _HELP("Executed when failed to create/open the output file.")),
+        OutputPortConfig_Void("Done", _HELP("Executed if successfully finished the operation."), "Done"),
+        OutputPortConfig_Void("DocumentNotFound", _HELP("Executed when the specified document ID is incorrect."), "Document Not Found"),
+        OutputPortConfig_Void("FailedToGetCurrentLevel", _HELP("Executed when location is Map and we failed to get current level."), "Failed To Get Current Level"),
+        OutputPortConfig_Void("UnableToCreateFile", _HELP("Executed when failed to create/open the output file."), "Unable To Create File"),
         { 0 }
     };
     config.sDescription = _HELP("Saves TOML document to file. Use NewDocument to get document ID.");
