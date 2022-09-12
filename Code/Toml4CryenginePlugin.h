@@ -1,15 +1,10 @@
 // Copyright 2016-2018 Crytek GmbH / Crytek Group. All rights reserved.
 #pragma once
 
-#include <unordered_map>
-#include <mutex>
-#include <optional>
-#include <filesystem>
 #include <CrySystem/ICryPlugin.h>
 #include <CryGame/IGameFramework.h>
 #include <CryEntitySystem/IEntityClass.h>
-
-#include "External/toml11/toml.hpp"
+#include "TomlManager/TomlManager.h"
 
 class CToml4CryenginePlugin 
 	: public Cry::IEnginePlugin
@@ -28,23 +23,10 @@ public:
 	//! \return Instance of this class.
 	static CToml4CryenginePlugin* GetInstance();
 
-	//! Registers a new TOML document and returns this document's unique ID.
+	//! Returns TOML manager to work with TOML files.
 	//! 
-	//! \return New document ID.
-	int RegisterNewTomlDocument();
-
-	//! Returns document's TOML data.
-	//! 
-	//! \param DocumentId Document for which to get TOML data.
-	//! 
-	//! \return nullptr if no document was registered for the specified ID, valid pointer otherwise.
-	toml::value* GetTomlData(int DocumentId);
-
-	//! Returns directory path to store config files.
-	//! 
-	//! \return Empty if something went wrong (see logs), otherwise directory path,
-	//! "%localappdata%" on Windows, "%HOME%/.config" on Linux.
-	std::optional<std::filesystem::path> GetDirectoryForConfigs();
+	//! \return TOML manager.
+	CTomlManager* GetTomlManager();
 	
 	// Cry::IEnginePlugin
 	virtual bool Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override;
@@ -60,14 +42,8 @@ private:
 	//! Plugin name.
 	static inline const char* m_pluginName = "TOML4CRYENGINE";
 
-	//! Created but not saved yet TOML documents.
-	std::unordered_map<size_t, toml::value> m_tomlDocuments;
-
-	//! ID for the next created TOML document.
-	int m_nextTomlDocumentId = 0;
-
-	//! Mutex for read/write operations on TOML documents and IDs.
-	std::mutex m_mtxTomlDocuments;
+	//! Manager to work with TOML files.
+	CTomlManager m_tomlManager;
 
 	// Include Flownode registering and unregistering (just needs to be included once in total).
 	PLUGIN_FLOWNODE_REGISTER

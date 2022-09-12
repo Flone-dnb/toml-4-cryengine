@@ -3,7 +3,7 @@
 #include "Toml4CryenginePlugin.h"
 #include <ILevelSystem.h>
 
-#include "External/toml11/toml.hpp"
+#include "TomlManager/External/toml11/toml.hpp"
 
 void CFlowTomlNode_NewDocument::GetConfiguration(SFlowNodeConfig& config)
 {
@@ -37,7 +37,7 @@ void CFlowTomlNode_NewDocument::ProcessEvent(EFlowEvent evt, SActivationInfo* pA
             }
 
             // Trigger output pin.
-            ActivateOutput(pActInfo, static_cast<int>(EOutputs::DocumentId), pPluginInstance->RegisterNewTomlDocument());
+            ActivateOutput(pActInfo, static_cast<int>(EOutputs::DocumentId), pPluginInstance->GetTomlManager()->RegisterNewTomlDocument());
         }
         break;
     }
@@ -89,16 +89,8 @@ void CFlowTomlNode_SetValue::ProcessEvent(EFlowEvent evt, SActivationInfo* pActI
                 return;
             }
 
-            // See if this document exists.
-            int documentId = GetPortInt(pActInfo, static_cast<int>(EInputs::DocumentId));
-            const auto pTomlData = pPluginInstance->GetTomlData(documentId);
-            if (!pTomlData)
-            {
-                ActivateOutput(pActInfo, static_cast<int>(EOutputs::DocumentNotFound), 0);
-                return;
-            }
-
             // Get inputs.
+            int documentId = GetPortInt(pActInfo, static_cast<int>(EInputs::DocumentId));
             const auto sectionName = GetPortString(pActInfo, static_cast<int>(EInputs::SectionName));
             const auto keyName = GetPortString(pActInfo, static_cast<int>(EInputs::KeyName));
             const TFlowInputData valueData = GetPortAny(pActInfo, static_cast<int>(EInputs::Value));
@@ -109,28 +101,30 @@ void CFlowTomlNode_SetValue::ProcessEvent(EFlowEvent evt, SActivationInfo* pActI
                 return;
             }
 
-            // Check if key is empty.
-            if (keyName.empty())
-            {
-                CryWarning(
-                    VALIDATOR_MODULE_FLOWGRAPH,
-                    VALIDATOR_WARNING,
-                    "The specified key name cannot be empty, unable to set value (document %d).", documentId);
-                return;
-            }
+            // Set value.
+            const auto optionalError
+                = pPluginInstance->GetTomlManager()->SetValue(documentId, std::string(keyName), std::string(value), std::string(sectionName));
 
-            // Set value to TOML data.
-            if (sectionName.empty())
+            if (!optionalError.has_value())
             {
-                pTomlData->operator[](keyName.data()) = toml::value(std::string(value));
+                // Trigger output pin.
+                ActivateOutput(pActInfo, static_cast<int>(EOutputs::DocumentId), 0);
             }
-            else 
+            else
             {
-                pTomlData->operator[](sectionName.data()).operator[](keyName.data()) = toml::value(std::string(value));
+                switch (optionalError.value())
+                {
+                case CTomlManager::SetValueError::KeyEmpty:
+                    CryWarning(
+                        VALIDATOR_MODULE_FLOWGRAPH,
+                        VALIDATOR_WARNING,
+                        "The specified key name cannot be empty, unable to set value (document %d).", documentId);
+                    break;
+                case CTomlManager::SetValueError::DocumentNotFound:
+                    ActivateOutput(pActInfo, static_cast<int>(EOutputs::DocumentNotFound), 0);
+                    break;
+                }
             }
-
-            // Trigger output pin.
-            ActivateOutput(pActInfo, static_cast<int>(EOutputs::DocumentId), 0);
         }
         break;
     }
@@ -152,7 +146,7 @@ void CFlowTomlNode_SaveDocument::GetConfiguration(SFlowNodeConfig& config)
         InputPortConfig<int>("DocumentID",  _HELP("Document to save."), "Document ID"),
         InputPortConfig<string>("FileName", _HELP("Name of the file without \".toml\" extension for the document."), "File Name"),
         InputPortConfig<string>("DirectoryName", _HELP("Usually your game name. Directory for file (will be appended to the base path)."), "Directory Name"),
-        InputPortConfig<bool>("Overwrite", true,  _HELP("Value to set."), "Overwrite"),
+        InputPortConfig<bool>("Overwrite", true,  _HELP("Whether to overwrite already existing file or not."), "Overwrite"),
         { 0 }
     };
     static const SOutputPortConfig out_config[] = {
@@ -183,88 +177,48 @@ void CFlowTomlNode_SaveDocument::ProcessEvent(EFlowEvent evt, SActivationInfo* p
                 return;
             }
 
-            // See if this document exists.
-            int documentId = GetPortInt(pActInfo, static_cast<int>(EInputs::DocumentId));
-            const auto pTomlData = pPluginInstance->GetTomlData(documentId);
-            if (!pTomlData)
-            {
-                ActivateOutput(pActInfo, static_cast<int>(EOutputs::DocumentNotFound), 0);
-                return;
-            }
-
-            // Check if TOML data is empty.
-            if (pTomlData->is_uninitialized())
-            {
-                CryWarning(
-                    VALIDATOR_MODULE_FLOWGRAPH,
-                    VALIDATOR_WARNING,
-                    "The specified TOML document is empty, nothing to save (document %d).", documentId);
-                return;
-            }
-
             // Get inputs.
+            const auto documentId = GetPortInt(pActInfo, static_cast<int>(EInputs::DocumentId));
             const auto fileName = GetPortString(pActInfo, static_cast<int>(EInputs::FileName));
             const auto directoryName = GetPortString(pActInfo, static_cast<int>(EInputs::DirectoryName));
             const auto bOverwrite = GetPortBool(pActInfo, static_cast<int>(EInputs::Overwrite));
 
-            // Check if file name is empty.
-            if (fileName.empty())
+            // Save document.
+            const auto optionalError
+                = pPluginInstance->GetTomlManager()->SaveDocument(documentId, std::string(fileName), std::string(directoryName), bOverwrite);
+
+            if (!optionalError.has_value())
             {
-                CryWarning(
-                    VALIDATOR_MODULE_FLOWGRAPH,
-                    VALIDATOR_WARNING,
-                    "The specified file name cannot be empty, unable to save document (document %d).", documentId);
-                return;
+                // Trigger output pin.
+                ActivateOutput(pActInfo, static_cast<int>(EOutputs::Done), 0);
             }
-
-            // Check if directory name is empty.
-            if (directoryName.empty())
+            else
             {
-                CryWarning(
-                    VALIDATOR_MODULE_FLOWGRAPH,
-                    VALIDATOR_WARNING,
-                    "The specified directory name cannot be empty, unable to save document (document %d).", documentId);
-                return;
-            }
-
-            // Get base directory to store configs.
-            const auto optionalBasePath = pPluginInstance->GetDirectoryForConfigs();
-            if (!optionalBasePath.has_value())
-            {
-                ActivateOutput(pActInfo, static_cast<int>(EOutputs::FailedToGetBasePath), 0);
-                return;
-            }
-
-            // Construct directory path.
-            const auto directoryPath
-                = optionalBasePath.value() / std::string(directoryName);
-            if (!std::filesystem::exists(directoryPath)) {
-                std::filesystem::create_directories(directoryPath);
-            }
-
-            // Construct file path.
-            const auto filePath = directoryPath / (std::string(fileName) + ".toml");
-
-            // Check if we need to overwrite the file.
-            if (bOverwrite || !std::filesystem::exists(filePath))
-            {
-                std::ofstream outFile(filePath, std::ios::binary);
-                if (!outFile.is_open()) {
+                switch (optionalError.value())
+                {
+                case CTomlManager::SaveDocumentError::FileNameEmpty:
                     CryWarning(
                         VALIDATOR_MODULE_FLOWGRAPH,
                         VALIDATOR_WARNING,
-                        "Unable to create/open file \"%s\", unable to save document (document %d).", filePath.string().c_str(), documentId);
+                        "The specified file name cannot be empty, unable to set value (document %d).", documentId);
+                    break;
+                case CTomlManager::SaveDocumentError::DirectoryNameEmpty:
+                    CryWarning(
+                        VALIDATOR_MODULE_FLOWGRAPH,
+                        VALIDATOR_WARNING,
+                        "The specified directory name cannot be empty, unable to set value (document %d).", documentId);
+                    break;
+                case CTomlManager::SaveDocumentError::DocumentNotFound:
+                    ActivateOutput(pActInfo, static_cast<int>(EOutputs::DocumentNotFound), 0);
+                    break;
+                case CTomlManager::SaveDocumentError::FailedToGetBasePath:
+                    ActivateOutput(pActInfo, static_cast<int>(EOutputs::FailedToGetBasePath), 0);
+                    break;
+                case CTomlManager::SaveDocumentError::UnableToCreateFile:
                     ActivateOutput(pActInfo, static_cast<int>(EOutputs::UnableToCreateFile), 0);
-                    return;
+                    break;
                 }
-                outFile << *pTomlData;
-                outFile.close();
-
-                CryLogAlways("[%s]: saved TOML document at \"%s\"", pPluginInstance->GetName(), filePath.string().c_str());
             }
-
-            // Trigger output pin.
-            ActivateOutput(pActInfo, static_cast<int>(EOutputs::Done), 0);
         }
         break;
     }
