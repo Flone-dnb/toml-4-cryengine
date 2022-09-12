@@ -12,7 +12,7 @@
 #include <cstdlib>
 #endif
 
-int CTomlManager::RegisterNewTomlDocument()
+int CTomlManager::NewDocument()
 {
 	std::scoped_lock guard(m_mtxTomlDocuments);
 
@@ -22,6 +22,8 @@ int CTomlManager::RegisterNewTomlDocument()
 
 	// Create a fresh TOML object.
 	m_tomlDocuments[newDocumentId] = toml::value();
+
+	CryLogAlways("[%s]: new document %i", m_logCategory, newDocumentId);
 
 	return newDocumentId;
 }
@@ -83,21 +85,26 @@ std::optional<CTomlManager::SaveDocumentError> CTomlManager::SaveDocument(int do
 {
 	std::scoped_lock guard(m_mtxTomlDocuments);
 
+	CryLogAlways("[%s]: attempting to save document %i", m_logCategory, documentId);
+
 	// Check that file name is not empty.
 	if (fileName.empty())
 	{
+		CancelDocument(documentId);
 		return CTomlManager::SaveDocumentError::FileNameEmpty;
 	}
 
 	// Check that directory name is not empty.
 	if (fileName.empty())
 	{
+		CancelDocument(documentId);
 		return CTomlManager::SaveDocumentError::DirectoryNameEmpty;
 	}
 
 	// Check that document exists.
 	if (!IsDocumentRegistered(documentId))
 	{
+		CancelDocument(documentId);
 		return CTomlManager::SaveDocumentError::DocumentNotFound;
 	}
 
@@ -107,6 +114,7 @@ std::optional<CTomlManager::SaveDocumentError> CTomlManager::SaveDocument(int do
 	// See if document has something.
 	if (pTomlData->is_uninitialized())
 	{
+		CancelDocument(documentId);
 		return CTomlManager::SaveDocumentError::DocumentIsEmpty;
 	}
 
@@ -114,6 +122,7 @@ std::optional<CTomlManager::SaveDocumentError> CTomlManager::SaveDocument(int do
 	const auto optionalBasePath = GetDirectoryForConfigs();
 	if (!optionalBasePath.has_value())
 	{
+		CancelDocument(documentId);
 		return CTomlManager::SaveDocumentError::FailedToGetBasePath;
 	}
 
@@ -131,19 +140,99 @@ std::optional<CTomlManager::SaveDocumentError> CTomlManager::SaveDocument(int do
 	{
 		std::ofstream outFile(filePath, std::ios::binary);
 		if (!outFile.is_open()) {
+			CancelDocument(documentId);
 			return CTomlManager::SaveDocumentError::UnableToCreateFile;
 		}
 		outFile << *pTomlData;
 		outFile.close();
 
-		CryLogAlways("[%s]: saved TOML document at \"%s\"", m_logCategory, filePath.string().c_str());
+		CryLogAlways("[%s]: saved TOML document at \"%s\" (document %i)", m_logCategory, filePath.string().c_str(), documentId);
+	}
+
+	CancelDocument(documentId);
+
+	return {};
+}
+
+std::variant<int, CTomlManager::OpenDocumentError> CTomlManager::OpenDocument(const std::string& fileName, const std::string& directoryName)
+{
+	std::scoped_lock guard(m_mtxTomlDocuments);
+
+	CryLogAlways("[%s]: attempting to open new document", m_logCategory);
+
+	// Check that file name is not empty.
+	if (fileName.empty())
+	{
+		return CTomlManager::OpenDocumentError::FileNameEmpty;
+	}
+
+	// Check that directory name is not empty.
+	if (fileName.empty())
+	{
+		return CTomlManager::OpenDocumentError::DirectoryNameEmpty;
+	}
+
+	// Get base directory to store configs.
+	const auto optionalBasePath = GetDirectoryForConfigs();
+	if (!optionalBasePath.has_value())
+	{
+		return CTomlManager::OpenDocumentError::FailedToGetBasePath;
+	}
+
+	// Construct directory path.
+	const auto directoryPath = optionalBasePath.value() / std::string(directoryName);
+	if (!std::filesystem::exists(directoryPath)) {
+		std::filesystem::create_directories(directoryPath);
+	}
+
+	// Construct file path.
+	const auto filePath = directoryPath / (std::string(fileName) + ".toml");
+
+	// Check if file exists.
+	if (!std::filesystem::exists(filePath))
+	{
+		return CTomlManager::OpenDocumentError::FileNotFound;
+	}
+
+	// Register new document.
+	const auto documentId = NewDocument();
+
+	// Get TOML data.
+	auto pTomlData = GetTomlData(documentId);
+
+	// Try parsing file.
+	try
+	{
+		*pTomlData = toml::parse(filePath);
+	}
+	catch (std::exception& exception)
+	{
+		CryLogAlways("[%s]: failed to parse file at \"%s\", error: %s", m_logCategory, filePath.string().c_str(), exception.what());
+		return CTomlManager::OpenDocumentError::ParsingFailed;
+	}
+
+	CryLogAlways("[%s]: opened new document %i", m_logCategory, documentId);
+
+	return documentId;
+}
+
+bool CTomlManager::CancelDocument(int documentId)
+{
+	std::scoped_lock guard(m_mtxTomlDocuments);
+
+	// Find document with this ID.
+	const auto it = m_tomlDocuments.find(documentId);
+	if (it == m_tomlDocuments.end())
+	{
+		return false;
 	}
 
 	// Remove document ID.
-	const auto it = m_tomlDocuments.find(documentId);
 	m_tomlDocuments.erase(it);
 
-	return {};
+	CryLogAlways("[%s]: cancel document %i", m_logCategory, documentId);
+
+	return true;
 }
 
 std::optional<std::filesystem::path> CTomlManager::GetDirectoryForConfigs()

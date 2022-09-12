@@ -4,6 +4,7 @@
 #include <mutex>
 #include <optional>
 #include <filesystem>
+#include <variant>
 #include "External/toml11/toml.hpp"
 
 //! Allows working with TOML files.
@@ -26,13 +27,22 @@ public:
 		UnableToCreateFile,  //!< Unable to create/open file.
 	};
 
+	//! Describes TOML manager's operation error.
+	enum class OpenDocumentError {
+		FileNotFound,        //!< The specified file/directory does not exist.
+		FileNameEmpty,       //!< File name parameter is empty.
+		DirectoryNameEmpty,  //!< Directory name parameter is empty.
+		FailedToGetBasePath, //!< Failed to get base path for storing your document (see logs for details).
+		ParsingFailed,       //!< Failed to parse given TOML file (see logs for details).
+	};
+
 	//! Constructor.
 	CTomlManager() = default;
 
-	//! Registers a new TOML document and returns this document's unique ID.
+	//! Initializes a fresh new TOML document and returns this document's unique ID.
 	//! 
 	//! \return New document ID.
-	int RegisterNewTomlDocument();
+	int NewDocument();
 
 	//! Checks if the specified document was registered before.
 	//! 
@@ -51,15 +61,34 @@ public:
 	//! \return Error if something went wrong.
 	std::optional<SetValueError> SetValue(int documentId, const std::string& key, const std::string& value, const std::string& sectionName = "");
 
-	//! Saves document to file and invalidates document ID.
+	//! Saves document to file and invalidates document ID (so you don't need to call \ref RemoveDocument).
 	//! 
 	//! \param documentId    Document to write value to.
 	//! \param fileName      Name of the file without ".toml" extension for the document.
 	//! \param directoryName Usually your game name. Directory for file (will be appended to the base path).
 	//! \param bOverwrite    Whether to overwrite already existing file or not.
 	//! 
-	//! \remark If the document was saved successfully the document's ID is no longer valid.
+	//! \return Error if something went wrong.
 	std::optional<SaveDocumentError> SaveDocument(int documentId, const std::string& fileName, const std::string& directoryName, bool bOverwrite = true);
+
+	//! Opens a document file and returns its new ID.
+	//! 
+	//! \param fileName      Name of the file without ".toml" extension for the document.
+	//! \param directoryName Usually your game name. Directory for file (will be appended to the base path).
+	//! 
+	//! \return ID of the opened document if successful, otherwise error.
+	std::variant<int, OpenDocumentError> OpenDocument(const std::string& fileName, const std::string& directoryName);
+
+	//! Invalidates document ID and clears internal data related to it.
+	//! 
+	//! \param documentId Document to invalidate.
+	//! 
+	//! \remark Usually you don't need to call this function explicitly as \ref SaveDocument will do that for you,
+	//! but if you created a new document, added some values to it and decided to not save this document, call this function
+	//! to clear internal data related to this document.
+	//! 
+	//! \return 'true' if the document with this ID was found and removed, 'false' otherwise.
+	bool CancelDocument(int documentId);
 
 	//! Returns directory path to store config files.
 	//! 
