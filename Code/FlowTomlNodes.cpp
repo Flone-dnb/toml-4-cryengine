@@ -243,7 +243,7 @@ void CFlowTomlNode_SaveDocument::GetConfiguration(SFlowNodeConfig& config)
         OutputPortConfig_Void("UnableToCreateFile", _HELP("Executed when failed to create/open the output file."), "Unable To Create File"),
         { 0 }
     };
-    config.sDescription = _HELP("Saves TOML document to file, base path is \"%localappdata%\" on Windows, \"%HOME%/.config\" on Linux.");
+    config.sDescription = _HELP("Saves TOML document to file and closes it (so you don't need to call CloseDocument), base path is \"%localappdata%\" on Windows, \"%HOME%/.config\" on Linux.");
     config.pInputPorts = in_config;
     config.pOutputPorts = out_config;
     config.SetCategory(EFLN_APPROVED);
@@ -336,7 +336,7 @@ void CFlowTomlNode_OpenDocument::GetConfiguration(SFlowNodeConfig& config)
         OutputPortConfig_Void("ParsingFailed", _HELP("Executed when failed to parse given TOML file (see logs for details)."), "Parsing Failed"),
         { 0 }
     };
-    config.sDescription = _HELP("Opens TOML document from file, base path is \"%localappdata%\" on Windows, \"%HOME%/.config\" on Linux.");
+    config.sDescription = _HELP("Opens TOML document from file (remember to call CloseDocument later), base path is \"%localappdata%\" on Windows, \"%HOME%/.config\" on Linux.");
     config.pInputPorts = in_config;
     config.pOutputPorts = out_config;
     config.SetCategory(EFLN_APPROVED);
@@ -409,6 +409,69 @@ void CFlowTomlNode_OpenDocument::GetMemoryUsage(ICrySizer* s) const
 }
 
 const char* CFlowTomlNode_OpenDocument::GetNodeName()
+{
+    return m_nodeName;
+}
+
+void CFlowTomlNode_CloseDocument::GetConfiguration(SFlowNodeConfig& config)
+{
+    static const SInputPortConfig in_config[] = {
+        InputPortConfig_Void("Close", _HELP("Close the document."), "Close"),
+        InputPortConfig<int>("DocumentId", _HELP("Document to close."), "Document ID"),
+        { 0 }
+    };
+    static const SOutputPortConfig out_config[] = {
+        OutputPortConfig_Void("Closed", _HELP("Executed if successfully closed the document."), "Closed"),
+        OutputPortConfig_Void("DocumentNotFound", _HELP("Executed when the specified document ID is incorrect."), "Document Not Found"),
+        { 0 }
+    };
+    config.sDescription = _HELP("Closes the document, clears document related internal data and invalidates document's ID.");
+    config.pInputPorts = in_config;
+    config.pOutputPorts = out_config;
+    config.SetCategory(EFLN_APPROVED);
+}
+
+void CFlowTomlNode_CloseDocument::ProcessEvent(EFlowEvent evt, SActivationInfo* pActInfo)
+{
+    switch (evt)
+    {
+    case eFE_Activate:
+        if (IsPortActive(pActInfo, static_cast<int>(EInputs::Close)))
+        {
+            // Get plugin instance.
+            const auto pPluginInstance = CToml4CryenginePlugin::GetInstance();
+            if (!pPluginInstance)
+            {
+                CryFatalError("Plugin is not initialized.");
+                return;
+            }
+
+            // Get inputs.
+            const auto documentId = GetPortInt(pActInfo, static_cast<int>(EInputs::DocumentId));
+
+            // Close document.
+            const auto bFound
+                = pPluginInstance->GetTomlManager()->CloseDocument(documentId);
+
+            if (bFound)
+            {
+                ActivateOutput(pActInfo, static_cast<int>(EOutputs::Closed), 0);
+            }
+            else
+            {
+                ActivateOutput(pActInfo, static_cast<int>(EOutputs::DocumentNotFound), 0);
+            }
+        }
+        break;
+    }
+}
+
+void CFlowTomlNode_CloseDocument::GetMemoryUsage(ICrySizer* s) const
+{
+    s->Add(*this);
+}
+
+const char* CFlowTomlNode_CloseDocument::GetNodeName()
 {
     return m_nodeName;
 }

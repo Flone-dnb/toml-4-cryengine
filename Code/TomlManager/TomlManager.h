@@ -80,7 +80,7 @@ public:
 	//! \return Error if something went wrong, otherwise found value.
 	std::variant<std::string, GetValueError> GetValue(int documentId, const std::string& keyName, const std::string& sectionName = "");
 
-	//! Saves document to file and invalidates document ID (so you don't need to call \ref RemoveDocument).
+	//! Saves document to file and closes the document (so you don't need to call \ref CloseDocument).
 	//! 
 	//! \param documentId    Document to write value to.
 	//! \param fileName      Name of the file without ".toml" extension for the document.
@@ -103,11 +103,12 @@ public:
 	//! \param documentId Document to invalidate.
 	//! 
 	//! \remark Usually you don't need to call this function explicitly as \ref SaveDocument will do that for you,
-	//! but if you created a new document, added some values to it and decided to not save this document, call this function
+	//! but if you opened a document, read some values from it, then call this function or
+	//! if you created a new document, added some values to it and decided to not save this document, call this function
 	//! to clear internal data related to this document.
 	//! 
-	//! \return 'true' if the document with this ID was found and removed, 'false' otherwise.
-	bool CancelDocument(int documentId);
+	//! \return 'true' if the document with this ID was found and closed, 'false' otherwise.
+	bool CloseDocument(int documentId);
 
 	//! Returns directory path to store config files.
 	//! 

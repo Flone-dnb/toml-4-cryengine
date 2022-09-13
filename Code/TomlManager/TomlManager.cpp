@@ -128,21 +128,21 @@ std::optional<CTomlManager::SaveDocumentError> CTomlManager::SaveDocument(int do
 	// Check that file name is not empty.
 	if (fileName.empty())
 	{
-		CancelDocument(documentId);
+		CloseDocument(documentId);
 		return CTomlManager::SaveDocumentError::FileNameEmpty;
 	}
 
 	// Check that directory name is not empty.
 	if (fileName.empty())
 	{
-		CancelDocument(documentId);
+		CloseDocument(documentId);
 		return CTomlManager::SaveDocumentError::DirectoryNameEmpty;
 	}
 
 	// Check that document exists.
 	if (!IsDocumentRegistered(documentId))
 	{
-		CancelDocument(documentId);
+		CloseDocument(documentId);
 		return CTomlManager::SaveDocumentError::DocumentNotFound;
 	}
 
@@ -152,7 +152,7 @@ std::optional<CTomlManager::SaveDocumentError> CTomlManager::SaveDocument(int do
 	// See if document has something.
 	if (pTomlData->is_uninitialized())
 	{
-		CancelDocument(documentId);
+		CloseDocument(documentId);
 		return CTomlManager::SaveDocumentError::DocumentIsEmpty;
 	}
 
@@ -160,7 +160,7 @@ std::optional<CTomlManager::SaveDocumentError> CTomlManager::SaveDocument(int do
 	const auto optionalBasePath = GetDirectoryForConfigs();
 	if (!optionalBasePath.has_value())
 	{
-		CancelDocument(documentId);
+		CloseDocument(documentId);
 		return CTomlManager::SaveDocumentError::FailedToGetBasePath;
 	}
 
@@ -178,7 +178,7 @@ std::optional<CTomlManager::SaveDocumentError> CTomlManager::SaveDocument(int do
 	{
 		std::ofstream outFile(filePath, std::ios::binary);
 		if (!outFile.is_open()) {
-			CancelDocument(documentId);
+			CloseDocument(documentId);
 			return CTomlManager::SaveDocumentError::UnableToCreateFile;
 		}
 		outFile << *pTomlData;
@@ -187,7 +187,7 @@ std::optional<CTomlManager::SaveDocumentError> CTomlManager::SaveDocument(int do
 		CryLogAlways("[%s]: saved TOML document at \"%s\" (document %i)", m_logCategory, filePath.string().c_str(), documentId);
 	}
 
-	CancelDocument(documentId);
+	CloseDocument(documentId);
 
 	return {};
 }
@@ -250,7 +250,7 @@ std::variant<int, CTomlManager::OpenDocumentError> CTomlManager::OpenDocument(co
 	return documentId;
 }
 
-bool CTomlManager::CancelDocument(int documentId)
+bool CTomlManager::CloseDocument(int documentId)
 {
 	std::scoped_lock guard(m_mtxTomlDocuments);
 
