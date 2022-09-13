@@ -18,6 +18,14 @@ public:
 	};
 
 	//! Describes TOML manager's operation error.
+	enum class GetValueError {
+		DocumentNotFound,  //!< Document ID is not registered or this document was saved (and ID is no longer valid).
+		KeyEmpty,          //!< Key parameter is empty.
+		ValueNotFound,     //!< Value for the specified key/section is not found.
+		ValueTypeNotString //!< Value for the specified key/section is not string.
+	};
+
+	//! Describes TOML manager's operation error.
 	enum class SaveDocumentError {
 		DocumentNotFound,    //!< Document ID is not registered or this document was saved (and ID is no longer valid).
 		DocumentIsEmpty,     //!< Document has no data to save (no value was set before).
@@ -54,12 +62,23 @@ public:
 	//! Sets a value into a TOML documents.
 	//! 
 	//! \param documentId  Document to write value to.
-	//! \param key         Name of the key for the value.
+	//! \param keyName     Name of the key for the value.
 	//! \param value       Value to write.
 	//! \param sectionName Optional. Section name for the value.
 	//! 
 	//! \return Error if something went wrong.
-	std::optional<SetValueError> SetValue(int documentId, const std::string& key, const std::string& value, const std::string& sectionName = "");
+	std::optional<SetValueError> SetValue(int documentId, const std::string& keyName, const std::string& value, const std::string& sectionName = "");
+
+	//! Returns a string value from TOML document.
+	//! 
+	//! \param documentId  Document to get value from.
+	//! \param keyName     Name of the key of the value.
+	//! \param sectionName Optional. Section name of the value.
+	//! 
+	//! \warning If the value has type other than std::string this function will return error.
+	//! 
+	//! \return Error if something went wrong, otherwise found value.
+	std::variant<std::string, GetValueError> GetValue(int documentId, const std::string& keyName, const std::string& sectionName = "");
 
 	//! Saves document to file and invalidates document ID (so you don't need to call \ref RemoveDocument).
 	//! 

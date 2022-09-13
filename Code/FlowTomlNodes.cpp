@@ -140,6 +140,93 @@ const char* CFlowTomlNode_SetValue::GetNodeName()
     return m_nodeName;
 }
 
+void CFlowTomlNode_GetValue::GetConfiguration(SFlowNodeConfig& config)
+{
+    static const SInputPortConfig in_config[] = {
+        InputPortConfig<int>("DocumentID",  _HELP("Document to get value from."), "Document ID"),
+        InputPortConfig<string>("SectionName",  _HELP("[Optional] Name of the section to get the value from."), "Section Name"),
+        InputPortConfig<string>("Key",  _HELP("Name of the key for the value."), "Key"),
+        { 0 }
+    };
+    static const SOutputPortConfig out_config[] = {
+        OutputPortConfig_Void("Value", _HELP("Executed when the value is read successfully."), "Value"),
+        OutputPortConfig_Void("DocumentNotFound", _HELP("Executed when the specified document ID is incorrect."), "Document Not Found"),
+        OutputPortConfig_Void("ValueNotFound", _HELP("Executed when the value for the specified key/section is not found."), "Value Not Found"),
+         OutputPortConfig_Void("ValueTypeNotString", _HELP("Executed when the value for the specified key/section is not string."), "Value Type Not String"),
+        { 0 }
+    };
+    config.sDescription = _HELP("Gets a value from TOML document.");
+    config.pInputPorts = in_config;
+    config.pOutputPorts = out_config;
+    config.SetCategory(EFLN_APPROVED);
+}
+
+void CFlowTomlNode_GetValue::ProcessEvent(EFlowEvent evt, SActivationInfo* pActInfo)
+{
+    switch (evt)
+    {
+    case eFE_Activate:
+        if (IsPortActive(pActInfo, static_cast<int>(EInputs::DocumentId)))
+        {
+            // Get plugin instance.
+            const auto pPluginInstance = CToml4CryenginePlugin::GetInstance();
+            if (!pPluginInstance)
+            {
+                CryFatalError("Plugin is not initialized.");
+                return;
+            }
+
+            // Get inputs.
+            int documentId = GetPortInt(pActInfo, static_cast<int>(EInputs::DocumentId));
+            const auto sectionName = GetPortString(pActInfo, static_cast<int>(EInputs::SectionName));
+            const auto keyName = GetPortString(pActInfo, static_cast<int>(EInputs::KeyName));
+
+            // Get value.
+            const auto result
+                = pPluginInstance->GetTomlManager()->GetValue(documentId, std::string(keyName), std::string(sectionName));
+
+            if (std::holds_alternative<std::string>(result))
+            {
+                // Trigger output pin.
+                ActivateOutput(pActInfo, static_cast<int>(EOutputs::Value), string(std::get<std::string>(result).c_str()));
+            }
+            else
+            {
+                const auto err = std::get<CTomlManager::GetValueError>(result);
+                switch (err)
+                {
+                case CTomlManager::GetValueError::KeyEmpty:
+                    CryWarning(
+                        VALIDATOR_MODULE_FLOWGRAPH,
+                        VALIDATOR_WARNING,
+                        "The specified key name cannot be empty, unable to set value (document %d).", documentId);
+                    break;
+                case CTomlManager::GetValueError::DocumentNotFound:
+                    ActivateOutput(pActInfo, static_cast<int>(EOutputs::DocumentNotFound), 0);
+                    break;
+                case CTomlManager::GetValueError::ValueNotFound:
+                    ActivateOutput(pActInfo, static_cast<int>(EOutputs::ValueNotFound), 0);
+                    break;
+                case CTomlManager::GetValueError::ValueTypeNotString:
+                    ActivateOutput(pActInfo, static_cast<int>(EOutputs::ValueTypeNotString), 0);
+                    break;
+                }
+            }
+        }
+        break;
+    }
+}
+
+void CFlowTomlNode_GetValue::GetMemoryUsage(ICrySizer* s) const
+{
+    s->Add(*this);
+}
+
+const char* CFlowTomlNode_GetValue::GetNodeName()
+{
+    return m_nodeName;
+}
+
 void CFlowTomlNode_SaveDocument::GetConfiguration(SFlowNodeConfig& config)
 {
     static const SInputPortConfig in_config[] = {

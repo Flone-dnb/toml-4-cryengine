@@ -23,8 +23,6 @@ int CTomlManager::NewDocument()
 	// Create a fresh TOML object.
 	m_tomlDocuments[newDocumentId] = toml::value();
 
-	CryLogAlways("[%s]: new document %i", m_logCategory, newDocumentId);
-
 	return newDocumentId;
 }
 
@@ -49,12 +47,12 @@ toml::value* CTomlManager::GetTomlData(int documentId)
 	return &it->second;
 }
 
-std::optional<CTomlManager::SetValueError> CTomlManager::SetValue(int documentId, const std::string& key, const std::string& value, const std::string& sectionName)
+std::optional<CTomlManager::SetValueError> CTomlManager::SetValue(int documentId, const std::string& keyName, const std::string& value, const std::string& sectionName)
 {
 	std::scoped_lock guard(m_mtxTomlDocuments);
 
 	// Check that key is not empty.
-	if (key.empty())
+	if (keyName.empty())
 	{
 		return CTomlManager::SetValueError::KeyEmpty;
 	}
@@ -71,21 +69,61 @@ std::optional<CTomlManager::SetValueError> CTomlManager::SetValue(int documentId
 	// Set value to TOML data.
 	if (sectionName.empty())
 	{
-		pTomlData->operator[](key.data()) = toml::value(std::string(value));
+		pTomlData->operator[](keyName.data()) = toml::value(std::string(value));
 	}
 	else
 	{
-		pTomlData->operator[](sectionName.data()).operator[](key.data()) = toml::value(std::string(value));
+		pTomlData->operator[](sectionName.data()).operator[](keyName.data()) = toml::value(std::string(value));
 	}
 
 	return {};
 }
 
-std::optional<CTomlManager::SaveDocumentError> CTomlManager::SaveDocument(int documentId, const std::string& fileName, const std::string& directoryName, bool bOverwrite)
+std::variant<std::string, CTomlManager::GetValueError> CTomlManager::GetValue(int documentId, const std::string& keyName, const std::string& sectionName)
 {
 	std::scoped_lock guard(m_mtxTomlDocuments);
 
-	CryLogAlways("[%s]: attempting to save document %i", m_logCategory, documentId);
+	// Check that key is not empty.
+	if (keyName.empty())
+	{
+		return CTomlManager::GetValueError::KeyEmpty;
+	}
+
+	// Check that document exists.
+	if (!IsDocumentRegistered(documentId))
+	{
+		return CTomlManager::GetValueError::DocumentNotFound;
+	}
+
+	// Get TOML data.
+	auto pTomlData = GetTomlData(documentId);
+
+	// Get value.
+	std::string value;
+	try
+	{
+		if (sectionName.empty()) {
+			value = toml::find<std::string>(*pTomlData, keyName.data());
+		}
+		else {
+			value = toml::find<std::string>(*pTomlData, sectionName.data(), keyName.data());
+		}
+	}
+	catch (toml::type_error&)
+	{
+		return CTomlManager::GetValueError::ValueTypeNotString;
+	}
+	catch (std::out_of_range&)
+	{
+		return CTomlManager::GetValueError::ValueNotFound;
+	}
+
+	return value;
+}
+
+std::optional<CTomlManager::SaveDocumentError> CTomlManager::SaveDocument(int documentId, const std::string& fileName, const std::string& directoryName, bool bOverwrite)
+{
+	std::scoped_lock guard(m_mtxTomlDocuments);
 
 	// Check that file name is not empty.
 	if (fileName.empty())
@@ -158,8 +196,6 @@ std::variant<int, CTomlManager::OpenDocumentError> CTomlManager::OpenDocument(co
 {
 	std::scoped_lock guard(m_mtxTomlDocuments);
 
-	CryLogAlways("[%s]: attempting to open new document", m_logCategory);
-
 	// Check that file name is not empty.
 	if (fileName.empty())
 	{
@@ -211,8 +247,6 @@ std::variant<int, CTomlManager::OpenDocumentError> CTomlManager::OpenDocument(co
 		return CTomlManager::OpenDocumentError::ParsingFailed;
 	}
 
-	CryLogAlways("[%s]: opened new document %i", m_logCategory, documentId);
-
 	return documentId;
 }
 
@@ -229,8 +263,6 @@ bool CTomlManager::CancelDocument(int documentId)
 
 	// Remove document ID.
 	m_tomlDocuments.erase(it);
-
-	CryLogAlways("[%s]: cancel document %i", m_logCategory, documentId);
 
 	return true;
 }
