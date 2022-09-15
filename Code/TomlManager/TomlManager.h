@@ -114,7 +114,7 @@ public:
 	//! 
 	//! \return Empty if something went wrong (see logs), otherwise directory path,
 	//! "%localappdata%" on Windows, "%HOME%/.config" on Linux.
-	std::optional<std::filesystem::path> GetDirectoryForConfigs();
+	static std::optional<std::filesystem::path> GetDirectoryForConfigs();
 
 private:
 
