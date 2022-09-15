@@ -22,7 +22,7 @@ public:
 		DocumentNotFound,  //!< Document ID is not registered or this document was saved (and ID is no longer valid).
 		KeyEmpty,          //!< Key parameter is empty.
 		ValueNotFound,     //!< Value for the specified key/section is not found.
-		ValueTypeNotString //!< Value for the specified key/section is not string.
+		ValueTypeMismatch  //!< Type for the specified key/section value is not the same as the specified T parameter.
 	};
 
 	//! Describes TOML manager's operation error.
@@ -74,8 +74,18 @@ public:
 	//! \param value       Value to write.
 	//! \param sectionName Optional. Section name for the value.
 	//! 
+	//! Possible value types for T:
+	//! - integer types (underlying type for integer is std::int64_t),
+	//! - float / double,
+	//! - bool,
+	//! - std::string,
+	//! - date / time,
+	//! - array containers(vector, list, deque, etc.),
+	//! - map containers(unordered_map, etc.).
+	//! 
 	//! \return Error if something went wrong.
-	std::optional<SetValueError> SetValue(int documentId, const std::string& keyName, const std::string& value, const std::string& sectionName = "");
+	template<typename T>
+	std::optional<SetValueError> SetValue(int documentId, const std::string& keyName, T value, const std::string& sectionName = "");
 
 	//! Returns a string value from TOML document.
 	//! 
@@ -83,10 +93,9 @@ public:
 	//! \param keyName     Name of the key of the value.
 	//! \param sectionName Optional. Section name of the value.
 	//! 
-	//! \warning If the value has type other than std::string this function will return error.
-	//! 
 	//! \return Error if something went wrong, otherwise found value.
-	std::variant<std::string, GetValueError> GetValue(int documentId, const std::string& keyName, const std::string& sectionName = "");
+	template<typename T>
+	std::variant<T, GetValueError> GetValue(int documentId, const std::string& keyName, const std::string& sectionName = "");
 
 	//! Saves document to file and closes the document (so you don't need to call \ref CloseDocument).
 	//! 
@@ -146,3 +155,78 @@ private:
 	std::recursive_mutex m_mtxTomlDocuments;
 };
 
+template<typename T>
+std::optional<CTomlManager::SetValueError> CTomlManager::SetValue(int documentId, const std::string& keyName, T value, const std::string& sectionName)
+{
+	std::scoped_lock guard(m_mtxTomlDocuments);
+
+	// Check that key is not empty.
+	if (keyName.empty())
+	{
+		return CTomlManager::SetValueError::KeyEmpty;
+	}
+
+	// Check that document exists.
+	if (!IsDocumentRegistered(documentId))
+	{
+		return CTomlManager::SetValueError::DocumentNotFound;
+	}
+
+	// Get TOML data.
+	auto pTomlData = GetTomlData(documentId);
+
+	// Set value to TOML data.
+	if (sectionName.empty())
+	{
+		pTomlData->operator[](keyName.data()) = toml::value(value);
+	}
+	else
+	{
+		pTomlData->operator[](sectionName.data()).operator[](keyName.data()) = toml::value(value);
+	}
+
+	return {};
+}
+
+template<typename T>
+std::variant<T, CTomlManager::GetValueError> CTomlManager::GetValue(int documentId, const std::string& keyName, const std::string& sectionName)
+{
+	std::scoped_lock guard(m_mtxTomlDocuments);
+
+	// Check that key is not empty.
+	if (keyName.empty())
+	{
+		return CTomlManager::GetValueError::KeyEmpty;
+	}
+
+	// Check that document exists.
+	if (!IsDocumentRegistered(documentId))
+	{
+		return CTomlManager::GetValueError::DocumentNotFound;
+	}
+
+	// Get TOML data.
+	auto pTomlData = GetTomlData(documentId);
+
+	// Get value.
+	T value;
+	try
+	{
+		if (sectionName.empty()) {
+			value = toml::find<T>(*pTomlData, keyName.data());
+		}
+		else {
+			value = toml::find<T>(*pTomlData, sectionName.data(), keyName.data());
+		}
+	}
+	catch (toml::type_error&)
+	{
+		return CTomlManager::GetValueError::ValueTypeMismatch;
+	}
+	catch (std::out_of_range&)
+	{
+		return CTomlManager::GetValueError::ValueNotFound;
+	}
+
+	return value;
+}

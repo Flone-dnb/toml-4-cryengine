@@ -122,7 +122,7 @@ private:
         Value = 0,
         DocumentNotFound,
         ValueNotFound,
-        ValueTypeNotString,
+        ValueTypeMismatch,
     };
 };
 

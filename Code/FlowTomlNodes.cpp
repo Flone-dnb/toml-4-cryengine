@@ -59,7 +59,7 @@ void CFlowTomlNode_SetValue::GetConfiguration(SFlowNodeConfig& config)
         InputPortConfig<int>("DocumentID",  _HELP("Document to set new value to."), "Document ID"),
         InputPortConfig<string>("SectionName",  _HELP("[Optional] Name of the section to set the value to."), "Section Name"),
         InputPortConfig<string>("Key",  _HELP("Name of the key for the value."), "Key"),
-        InputPortConfig_Void("Value",  _HELP("Value to set."), "Value"),
+        InputPortConfig_Void("Value",  _HELP("Value to set (will be converted to string)."), "Value"),
         { 0 }
     };
     static const SOutputPortConfig out_config[] = {
@@ -68,7 +68,7 @@ void CFlowTomlNode_SetValue::GetConfiguration(SFlowNodeConfig& config)
         OutputPortConfig_Void("FailedToConvertValue", _HELP("Executed when failed to convert the specified value to string."), "Failed To Convert Value"),
         { 0 }
     };
-    config.sDescription = _HELP("Sets a value to TOML document.");
+    config.sDescription = _HELP("Sets a string value to TOML document.");
     config.pInputPorts = in_config;
     config.pOutputPorts = out_config;
     config.SetCategory(EFLN_APPROVED);
@@ -103,7 +103,7 @@ void CFlowTomlNode_SetValue::ProcessEvent(EFlowEvent evt, SActivationInfo* pActI
 
             // Set value.
             const auto optionalError
-                = pPluginInstance->GetTomlManager()->SetValue(documentId, std::string(keyName), std::string(value), std::string(sectionName));
+                = pPluginInstance->GetTomlManager()->SetValue<std::string>(documentId, std::string(keyName), std::string(value), std::string(sectionName));
 
             if (!optionalError.has_value())
             {
@@ -152,7 +152,7 @@ void CFlowTomlNode_GetValue::GetConfiguration(SFlowNodeConfig& config)
         OutputPortConfig_Void("Value", _HELP("Executed when the value is read successfully."), "Value"),
         OutputPortConfig_Void("DocumentNotFound", _HELP("Executed when the specified document ID is incorrect."), "Document Not Found"),
         OutputPortConfig_Void("ValueNotFound", _HELP("Executed when the value for the specified key/section is not found."), "Value Not Found"),
-         OutputPortConfig_Void("ValueTypeNotString", _HELP("Executed when the value for the specified key/section is not string."), "Value Type Not String"),
+         OutputPortConfig_Void("ValueTypeMismatch", _HELP("Executed when the type for the specified key/section value is not string."), "Value Type Mismatch"),
         { 0 }
     };
     config.sDescription = _HELP("Gets a value from TOML document.");
@@ -183,7 +183,7 @@ void CFlowTomlNode_GetValue::ProcessEvent(EFlowEvent evt, SActivationInfo* pActI
 
             // Get value.
             const auto result
-                = pPluginInstance->GetTomlManager()->GetValue(documentId, std::string(keyName), std::string(sectionName));
+                = pPluginInstance->GetTomlManager()->GetValue<std::string>(documentId, std::string(keyName), std::string(sectionName));
 
             if (std::holds_alternative<std::string>(result))
             {
@@ -207,8 +207,8 @@ void CFlowTomlNode_GetValue::ProcessEvent(EFlowEvent evt, SActivationInfo* pActI
                 case CTomlManager::GetValueError::ValueNotFound:
                     ActivateOutput(pActInfo, static_cast<int>(EOutputs::ValueNotFound), 0);
                     break;
-                case CTomlManager::GetValueError::ValueTypeNotString:
-                    ActivateOutput(pActInfo, static_cast<int>(EOutputs::ValueTypeNotString), 0);
+                case CTomlManager::GetValueError::ValueTypeMismatch:
+                    ActivateOutput(pActInfo, static_cast<int>(EOutputs::ValueTypeMismatch), 0);
                     break;
                 }
             }
