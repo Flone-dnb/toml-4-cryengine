@@ -253,9 +253,50 @@ private:
     };
 };
 
+//! Describes a "GetDirectoryPathForDocuments" node to get path to the directory where we store documents.
+class CFlowTomlNode_GetDirectoryPathForDocuments : public CFlowBaseNode<eNCT_Singleton>
+{
+public:
+    CFlowTomlNode_GetDirectoryPathForDocuments(SActivationInfo* pActInfo) {};
+
+    //! Returns node configuration (input, output ports, description, etc.).
+    virtual void GetConfiguration(SFlowNodeConfig& config) override;
+
+    //! Processes Flow Graph events.
+    virtual void ProcessEvent(EFlowEvent evt, SActivationInfo* pActInfo) override;
+
+    //! Returns memory usage of this object.
+    virtual void GetMemoryUsage(ICrySizer* s) const override;
+
+    //! Returns name of this node.
+    //! 
+    //! \return Name of this node.
+    static const char* GetNodeName();
+
+private:
+
+    //! Name of this node.
+    static inline const char* m_nodeName = "TOML:GetDirectoryPathForDocuments";
+
+    //! Input ports of this node.
+    enum class EInputs : int
+    {
+        Get = 0,
+        DirectoryName,
+    };
+
+    //! Output ports of this node.
+    enum class EOutputs : int
+    {
+        Path = 0,
+        Failed
+    };
+};
+
 REGISTER_FLOW_NODE(CFlowTomlNode_NewDocument::GetNodeName(), CFlowTomlNode_NewDocument)
 REGISTER_FLOW_NODE(CFlowTomlNode_SetValue::GetNodeName(), CFlowTomlNode_SetValue)
 REGISTER_FLOW_NODE(CFlowTomlNode_GetValue::GetNodeName(), CFlowTomlNode_GetValue)
 REGISTER_FLOW_NODE(CFlowTomlNode_SaveDocument::GetNodeName(), CFlowTomlNode_SaveDocument)
 REGISTER_FLOW_NODE(CFlowTomlNode_OpenDocument::GetNodeName(), CFlowTomlNode_OpenDocument)
 REGISTER_FLOW_NODE(CFlowTomlNode_CloseDocument::GetNodeName(), CFlowTomlNode_CloseDocument)
+REGISTER_FLOW_NODE(CFlowTomlNode_GetDirectoryPathForDocuments::GetNodeName(), CFlowTomlNode_GetDirectoryPathForDocuments)

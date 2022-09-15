@@ -475,3 +475,76 @@ const char* CFlowTomlNode_CloseDocument::GetNodeName()
 {
     return m_nodeName;
 }
+
+void CFlowTomlNode_GetDirectoryPathForDocuments::GetConfiguration(SFlowNodeConfig& config)
+{
+    static const SInputPortConfig in_config[] = {
+        InputPortConfig_Void("Get", _HELP("Get path for the directory where we store documents."), "Get"),
+        InputPortConfig<string>("DirectoryName", _HELP("Usually your game name. Directory for documents (will be appended to the base path)."), "Directory Name"),
+        { 0 }
+    };
+    static const SOutputPortConfig out_config[] = {
+        OutputPortConfig<string>("Path", _HELP("Path for the directory where we store documents."), "Path"),
+        OutputPortConfig_Void("Failed", _HELP("Executed when something went wrong."), "Failed"),
+        { 0 }
+    };
+    config.sDescription = _HELP("Returns path for the directory where we store documents.");
+    config.pInputPorts = in_config;
+    config.pOutputPorts = out_config;
+    config.SetCategory(EFLN_APPROVED);
+}
+
+void CFlowTomlNode_GetDirectoryPathForDocuments::ProcessEvent(EFlowEvent evt, SActivationInfo* pActInfo)
+{
+    switch (evt)
+    {
+    case eFE_Activate:
+        if (IsPortActive(pActInfo, static_cast<int>(EInputs::Get)))
+        {
+            // Get plugin instance.
+            const auto pPluginInstance = CToml4CryenginePlugin::GetInstance();
+            if (!pPluginInstance)
+            {
+                CryFatalError("Plugin is not initialized.");
+                return;
+            }
+
+            // Get inputs.
+            const auto directoryName = GetPortString(pActInfo, static_cast<int>(EInputs::DirectoryName));
+
+            // Check that directory name is not empty.
+            if (directoryName.empty())
+            {
+                CryWarning(
+                    VALIDATOR_MODULE_FLOWGRAPH,
+                    VALIDATOR_WARNING,
+                    "The specified directory name cannot be empty, unable to get directory path.", directoryName);
+                return;
+            }
+
+            // Close document.
+            const auto optionalPath
+                = pPluginInstance->GetTomlManager()->GetDirectoryPathForDocuments(std::string(directoryName));
+
+            if (optionalPath.has_value())
+            {
+                ActivateOutput(pActInfo, static_cast<int>(EOutputs::Path), string(optionalPath.value().string().c_str()));
+            }
+            else
+            {
+                ActivateOutput(pActInfo, static_cast<int>(EOutputs::Failed), 0);
+            }
+        }
+        break;
+    }
+}
+
+void CFlowTomlNode_GetDirectoryPathForDocuments::GetMemoryUsage(ICrySizer* s) const
+{
+    s->Add(*this);
+}
+
+const char* CFlowTomlNode_GetDirectoryPathForDocuments::GetNodeName()
+{
+    return m_nodeName;
+}

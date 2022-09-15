@@ -47,6 +47,14 @@ public:
 	//! Constructor.
 	CTomlManager() = default;
 
+	//! Returns path where we store documents.
+	//! 
+	//! \param directoryName Usually your game name. Directory for documents (will be appended to the base path).
+	//! 
+	//! \return Empty if the directory name is empty or something went wrong (see logs),
+	//! otherwise path to the directory where the documents are stored (the directory might not exist).
+	static std::optional<std::filesystem::path> GetDirectoryPathForDocuments(const std::string& directoryName);
+
 	//! Initializes a fresh new TOML document and returns this document's unique ID.
 	//! 
 	//! \return New document ID.
@@ -110,13 +118,13 @@ public:
 	//! \return 'true' if the document with this ID was found and closed, 'false' otherwise.
 	bool CloseDocument(int documentId);
 
+private:
+
 	//! Returns directory path to store config files.
 	//! 
 	//! \return Empty if something went wrong (see logs), otherwise directory path,
 	//! "%localappdata%" on Windows, "%HOME%/.config" on Linux.
 	static std::optional<std::filesystem::path> GetDirectoryForConfigs();
-
-private:
 
 	//! Returns document's TOML data.
 	//! 

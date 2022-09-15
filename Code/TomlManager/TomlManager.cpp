@@ -34,6 +34,27 @@ bool CTomlManager::IsDocumentRegistered(int documentId)
 	return it != m_tomlDocuments.end();
 }
 
+std::optional<std::filesystem::path> CTomlManager::GetDirectoryPathForDocuments(const std::string& directoryName)
+{
+	// Check that directory name is not empty.
+	if (directoryName.empty())
+	{
+		return {};
+	}
+
+	// Get base directory to store configs.
+	const auto optionalBasePath = GetDirectoryForConfigs();
+	if (!optionalBasePath.has_value())
+	{
+		return {};
+	}
+
+	// Construct directory path.
+	const auto directoryPath = optionalBasePath.value() / std::string(directoryName);
+
+	return directoryPath;
+}
+
 toml::value* CTomlManager::GetTomlData(int documentId)
 {
 	std::scoped_lock guard(m_mtxTomlDocuments);
