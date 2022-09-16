@@ -68,7 +68,7 @@ toml::value* CTomlManager::GetTomlData(int documentId)
 	return &it->second;
 }
 
-std::optional<CTomlManager::SaveDocumentError> CTomlManager::SaveDocument(int documentId, const std::string& fileName, const std::string& directoryName, bool bOverwrite)
+std::optional<CTomlManager::SaveDocumentError> CTomlManager::SaveDocument(int documentId, const std::string& fileName, const std::string& directoryName, bool bEnableBackup)
 {
 	std::scoped_lock guard(m_mtxTomlDocuments);
 
@@ -120,21 +120,38 @@ std::optional<CTomlManager::SaveDocumentError> CTomlManager::SaveDocument(int do
 	// Construct file path.
 	const auto filePath = directoryPath / (std::string(fileName) + ".toml");
 
-	// Check if we need to overwrite the file.
-	if (bOverwrite || !std::filesystem::exists(filePath))
-	{
-		std::ofstream outFile(filePath, std::ios::binary);
-		if (!outFile.is_open()) {
-			CloseDocument(documentId);
-			return CTomlManager::SaveDocumentError::UnableToCreateFile;
+	// Handle backup.
+	std::filesystem::path backupFile = filePath;
+	backupFile += m_backupFileExtension;
+	if (bEnableBackup) {
+		// Check if we already had this file saved.
+		if (std::filesystem::exists(filePath)) {
+			if (std::filesystem::exists(backupFile)) {
+				std::filesystem::remove(backupFile);
+			}
+			std::filesystem::rename(filePath, backupFile);
 		}
-		outFile << *pTomlData;
-		outFile.close();
-
-		CryLogAlways("[%s]: saved TOML document at \"%s\" (document %i)", m_logCategory, filePath.string().c_str(), documentId);
 	}
 
+	// Save document.
+	std::ofstream outFile(filePath, std::ios::binary);
+	if (!outFile.is_open()) {
+		CloseDocument(documentId);
+		return CTomlManager::SaveDocumentError::UnableToCreateFile;
+	}
+	outFile << *pTomlData;
+	outFile.close();
+
+	CryLogAlways("[%s]: saved TOML document at \"%s\" (document %i)", m_logCategory, filePath.string().c_str(), documentId);
+
 	CloseDocument(documentId);
+
+	if (bEnableBackup) {
+		// Create backup file if it does not exist.
+		if (!std::filesystem::exists(backupFile)) {
+			std::filesystem::copy_file(filePath, backupFile);
+		}
+	}
 
 	return {};
 }
@@ -171,10 +188,20 @@ std::variant<int, CTomlManager::OpenDocumentError> CTomlManager::OpenDocument(co
 	// Construct file path.
 	const auto filePath = directoryPath / (std::string(fileName) + ".toml");
 
-	// Check if file exists.
+	// Handle backup.
+	std::filesystem::path backupFile = filePath;
+	backupFile += m_backupFileExtension;
 	if (!std::filesystem::exists(filePath))
 	{
-		return CTomlManager::OpenDocumentError::FileNotFound;
+		// Check if backup file exists.
+		if (std::filesystem::exists(backupFile))
+		{
+			std::filesystem::copy_file(backupFile, filePath);
+		}
+		else
+		{
+			return CTomlManager::OpenDocumentError::FileNotFound;
+		}
 	}
 
 	// Register new document.

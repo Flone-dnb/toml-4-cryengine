@@ -157,7 +157,7 @@ private:
         DocumentId = 0,
         FileName,
         DirectoryName,
-        Overwrite,
+        EnableBackup,
     };
 
     //! Output ports of this node.

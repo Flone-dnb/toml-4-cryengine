@@ -233,7 +233,7 @@ void CFlowTomlNode_SaveDocument::GetConfiguration(SFlowNodeConfig& config)
         InputPortConfig<int>("DocumentID",  _HELP("Document to save."), "Document ID"),
         InputPortConfig<string>("FileName", _HELP("Name of the file without \".toml\" extension for the document."), "File Name"),
         InputPortConfig<string>("DirectoryName", _HELP("Usually your game name. Directory for file (will be appended to the base path)."), "Directory Name"),
-        InputPortConfig<bool>("Overwrite", true,  _HELP("Whether to overwrite already existing file or not."), "Overwrite"),
+        InputPortConfig<bool>("EnableBackup", true,  _HELP("Whether to use a backup (copy) file or not. OpenDocument can use backup file if the original file is missing for some reason."), "Enable Backup"),
         { 0 }
     };
     static const SOutputPortConfig out_config[] = {
@@ -268,11 +268,11 @@ void CFlowTomlNode_SaveDocument::ProcessEvent(EFlowEvent evt, SActivationInfo* p
             const auto documentId = GetPortInt(pActInfo, static_cast<int>(EInputs::DocumentId));
             const auto fileName = GetPortString(pActInfo, static_cast<int>(EInputs::FileName));
             const auto directoryName = GetPortString(pActInfo, static_cast<int>(EInputs::DirectoryName));
-            const auto bOverwrite = GetPortBool(pActInfo, static_cast<int>(EInputs::Overwrite));
+            const auto bEnableBackup = GetPortBool(pActInfo, static_cast<int>(EInputs::EnableBackup));
 
             // Save document.
             const auto optionalError
-                = pPluginInstance->GetTomlManager()->SaveDocument(documentId, std::string(fileName), std::string(directoryName), bOverwrite);
+                = pPluginInstance->GetTomlManager()->SaveDocument(documentId, std::string(fileName), std::string(directoryName), bEnableBackup);
 
             if (!optionalError.has_value())
             {

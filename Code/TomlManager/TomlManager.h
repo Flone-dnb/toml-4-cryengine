@@ -102,10 +102,11 @@ public:
 	//! \param documentId    Document to write value to.
 	//! \param fileName      Name of the file without ".toml" extension for the document.
 	//! \param directoryName Usually your game name. Directory for file (will be appended to the base path).
-	//! \param bOverwrite    Whether to overwrite already existing file or not.
+	//! \param bEnableBackup If 'true' will also use a backup (copy) file. \ref OpenDocument can use backup file
+	//! if the original file is missing for some reason.
 	//! 
 	//! \return Error if something went wrong.
-	std::optional<SaveDocumentError> SaveDocument(int documentId, const std::string& fileName, const std::string& directoryName, bool bOverwrite = true);
+	std::optional<SaveDocumentError> SaveDocument(int documentId, const std::string& fileName, const std::string& directoryName, bool bEnableBackup);
 
 	//! Opens a document file and returns its new ID.
 	//! 
@@ -144,6 +145,9 @@ private:
 
 	//! Text that we add before log text.
 	static inline const auto m_logCategory = "TomlManager";
+
+	//! File extension used for backup files.
+	static inline const auto m_backupFileExtension = ".old";
 
 	//! Created but not saved yet TOML documents.
 	std::unordered_map<size_t, toml::value> m_tomlDocuments;
