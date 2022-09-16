@@ -10,7 +10,7 @@ Generate CRYENGINE solution, select `Toml4Cryengine` target and compile it.
 
 # How to use Flow Graph nodes
 
-- Build plugin (see previous section).
+- Build the plugin (see previous section) or download it from the [Releases](https://github.com/Flone-dnb/toml-4-cryengine/releases) section.
 - Copy `Toml4Cryengine.dll` from `bin/win_x64` directory to you project's `bin/win_x64` directory.
 - Modify your project's `Game.cryproject` file, add a new entry in `"plugins"` section:
 
