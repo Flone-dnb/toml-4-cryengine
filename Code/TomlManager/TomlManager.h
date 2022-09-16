@@ -44,6 +44,12 @@ public:
 		ParsingFailed,       //!< Failed to parse given TOML file (see logs for details).
 	};
 
+	//! Describes TOML manager's operation error.
+	enum class GetAllDocumentsError {
+		DirectoryNameEmpty,  //!< Directory name parameter is empty.
+		FailedToGetBasePath, //!< Failed to get base path for storing your document (see logs for details).
+	};
+
 	//! Constructor.
 	CTomlManager() = default;
 
@@ -54,6 +60,21 @@ public:
 	//! \return Empty if the directory name is empty or something went wrong (see logs),
 	//! otherwise path to the directory where the documents are stored (the directory might not exist).
 	static std::optional<std::filesystem::path> GetDirectoryPathForDocuments(const std::string& directoryName);
+
+	//! Scans the specified directory for documents and returns an array of filenames (without extensions)
+	//! of found documents (backup files are excluded).
+	//! 
+	//! \param directoryName Usually your game name. Directory for documents (will be appended to the base path).
+	//! 
+	//! \remark If a backup file was found and the original file of the backup is missing the original file will be
+	//! created as a copy of the backup file and will be returned as a found document.
+	//! 
+	//! \remark Does not scan the directory recursively, only checks the specified directory without scanning directories
+	//! inside of it.
+	//! 
+	//! \return Error if something went wrong, otherwise an empty array if the directory if empty or does not exist,
+	//! or an array of found document file names (without extensions, excluding backup files).
+	static std::variant<std::vector<std::string>, GetAllDocumentsError> GetAllDocuments(const std::string& directoryName);
 
 	//! Initializes a fresh new TOML document and returns this document's unique ID.
 	//! 

@@ -34,6 +34,87 @@ bool CTomlManager::IsDocumentRegistered(int documentId)
 	return it != m_tomlDocuments.end();
 }
 
+std::variant<std::vector<std::string>, CTomlManager::GetAllDocumentsError> CTomlManager::GetAllDocuments(const std::string& directoryName)
+{
+	// Check that directory name is not empty.
+	if (directoryName.empty())
+	{
+		return CTomlManager::GetAllDocumentsError::DirectoryNameEmpty;
+	}
+
+	// Get base directory to store configs.
+	const auto optionalBasePath = GetDirectoryForConfigs();
+	if (!optionalBasePath.has_value())
+	{
+		return CTomlManager::GetAllDocumentsError::FailedToGetBasePath;
+	}
+
+	// Construct directory path.
+	const auto directoryPath = optionalBasePath.value() / std::string(directoryName);
+	if (!std::filesystem::exists(directoryPath))
+	{
+		return std::vector<std::string>();
+	}
+
+	// Scan directory for documents.
+	std::vector<std::string> foundDocumentNames;
+	const auto directoryIterator = std::filesystem::directory_iterator(directoryPath);
+	for (const auto& entry : directoryIterator)
+	{
+		if (!entry.is_regular_file()) continue;
+
+		if (entry.path().extension().string() == m_backupFileExtension)
+		{
+			// Backup file. See if original file exists.
+			const auto originalFilePath = directoryPath / entry.path().stem().string();
+			if (!std::filesystem::exists(originalFilePath))
+			{
+				// Backup file exists, but not the original file.
+				// Copy backup file as the original.
+				std::filesystem::copy_file(entry, originalFilePath);
+			}
+
+			// Check if we already added the original file.
+			bool bFound = false;
+			std::string originalFileName = originalFilePath.stem().string();
+			for (const auto& fileName : foundDocumentNames)
+			{
+				if (originalFileName == fileName)
+				{
+					bFound = true;
+					break;
+				}
+			}
+
+			if (!bFound)
+			{
+				foundDocumentNames.push_back(originalFileName);
+			}
+		}
+		else
+		{
+			// Check if we already added this file.
+			bool bFound = false;
+			std::string entryFileName = entry.path().stem().string();
+			for (const auto& fileName : foundDocumentNames)
+			{
+				if (entryFileName == fileName)
+				{
+					bFound = true;
+					break;
+				}
+			}
+
+			if (!bFound)
+			{
+				foundDocumentNames.push_back(entryFileName);
+			}
+		}
+	}
+
+	return foundDocumentNames;
+}
+
 std::optional<std::filesystem::path> CTomlManager::GetDirectoryPathForDocuments(const std::string& directoryName)
 {
 	// Check that directory name is not empty.
@@ -123,10 +204,13 @@ std::optional<CTomlManager::SaveDocumentError> CTomlManager::SaveDocument(int do
 	// Handle backup.
 	std::filesystem::path backupFile = filePath;
 	backupFile += m_backupFileExtension;
-	if (bEnableBackup) {
+	if (bEnableBackup)
+	{
 		// Check if we already had this file saved.
-		if (std::filesystem::exists(filePath)) {
-			if (std::filesystem::exists(backupFile)) {
+		if (std::filesystem::exists(filePath))
+		{
+			if (std::filesystem::exists(backupFile))
+			{
 				std::filesystem::remove(backupFile);
 			}
 			std::filesystem::rename(filePath, backupFile);
@@ -135,7 +219,8 @@ std::optional<CTomlManager::SaveDocumentError> CTomlManager::SaveDocument(int do
 
 	// Save document.
 	std::ofstream outFile(filePath, std::ios::binary);
-	if (!outFile.is_open()) {
+	if (!outFile.is_open())
+	{
 		CloseDocument(documentId);
 		return CTomlManager::SaveDocumentError::UnableToCreateFile;
 	}
@@ -146,9 +231,11 @@ std::optional<CTomlManager::SaveDocumentError> CTomlManager::SaveDocument(int do
 
 	CloseDocument(documentId);
 
-	if (bEnableBackup) {
+	if (bEnableBackup)
+	{
 		// Create backup file if it does not exist.
-		if (!std::filesystem::exists(backupFile)) {
+		if (!std::filesystem::exists(backupFile))
+		{
 			std::filesystem::copy_file(filePath, backupFile);
 		}
 	}

@@ -522,7 +522,7 @@ void CFlowTomlNode_GetDirectoryPathForDocuments::ProcessEvent(EFlowEvent evt, SA
                 return;
             }
 
-            // Close document.
+            // Get directory path.
             const auto optionalPath
                 = pPluginInstance->GetTomlManager()->GetDirectoryPathForDocuments(std::string(directoryName));
 
@@ -545,6 +545,104 @@ void CFlowTomlNode_GetDirectoryPathForDocuments::GetMemoryUsage(ICrySizer* s) co
 }
 
 const char* CFlowTomlNode_GetDirectoryPathForDocuments::GetNodeName()
+{
+    return m_nodeName;
+}
+
+void CFlowTomlNode_GetAllDocuments::GetConfiguration(SFlowNodeConfig& config)
+{
+    static const SInputPortConfig in_config[] = {
+        InputPortConfig_Void("Get", _HELP("Get array of document names in the specified directory."), "Get"),
+        InputPortConfig<string>("DirectoryName", _HELP("Usually your game name. Directory for documents (will be appended to the base path)."), "Directory Name"),
+        { 0 }
+    };
+    static const SOutputPortConfig out_config[] = {
+        OutputPortConfig<string>("Array", _HELP("Pipe separated array of document names (without file extensions)."), "Array"),
+        OutputPortConfig_Void("FailedToGetBasePath", _HELP("Executed when failed to get base path (see logs for details)."), "Failed To Get Base Path"),
+        OutputPortConfig_Void("DocumentNamesContainPipes", _HELP("Executed when some document names have pipe characters."), "Document Names Contain Pipes"),
+        { 0 }
+    };
+    config.sDescription = _HELP("Scans the specified directory for documents and returns an array of filenames (without extensions) "
+        "of found documents (backup files are excluded). If a backup file was found and the original file of the backup is missing the original file will be "
+        "created as a copy of the backup file and will be returned as a found document.");
+    config.pInputPorts = in_config;
+    config.pOutputPorts = out_config;
+    config.SetCategory(EFLN_APPROVED);
+}
+
+void CFlowTomlNode_GetAllDocuments::ProcessEvent(EFlowEvent evt, SActivationInfo* pActInfo)
+{
+    switch (evt)
+    {
+    case eFE_Activate:
+        if (IsPortActive(pActInfo, static_cast<int>(EInputs::Get)))
+        {
+            // Get plugin instance.
+            const auto pPluginInstance = CToml4CryenginePlugin::GetInstance();
+            if (!pPluginInstance)
+            {
+                CryFatalError("Plugin is not initialized.");
+                return;
+            }
+
+            // Get inputs.
+            const auto directoryName = GetPortString(pActInfo, static_cast<int>(EInputs::DirectoryName));
+
+            // Get documents.
+            const auto result
+                = pPluginInstance->GetTomlManager()->GetAllDocuments(std::string(directoryName));
+
+            // Process results.
+            if (std::holds_alternative<std::vector<std::string>>(result))
+            {
+                const auto foundDocumentNames = std::get<std::vector<std::string>>(std::move(result));
+
+                // Convert to string and use pipe to separate elements.
+                std::string array;
+                for (size_t i = 0; i < foundDocumentNames.size(); i++)
+                {
+                    if (foundDocumentNames[i].find('|') != std::string::npos)
+                    {
+                        ActivateOutput(pActInfo, static_cast<int>(EOutputs::DocumentNamesContainPipes), 0);
+                        return;
+                    }
+
+                    array += foundDocumentNames[i];
+                    if (i != foundDocumentNames.size() - 1)
+                    {
+                        array += "|";
+                    }
+                }
+
+                ActivateOutput(pActInfo, static_cast<int>(EOutputs::Array), string(array.c_str()));
+            }
+            else
+            {
+                const auto error = std::get<CTomlManager::GetAllDocumentsError>(result);
+                switch (error)
+                {
+                case CTomlManager::GetAllDocumentsError::DirectoryNameEmpty:
+                    CryWarning(
+                        VALIDATOR_MODULE_FLOWGRAPH,
+                        VALIDATOR_WARNING,
+                        "The specified directory name cannot be empty, unable to get document names.", directoryName);
+                    return;
+                case CTomlManager::GetAllDocumentsError::FailedToGetBasePath:
+                    ActivateOutput(pActInfo, static_cast<int>(EOutputs::FailedToGetBasePath), 0);
+                    break;
+                }
+            }
+        }
+        break;
+    }
+}
+
+void CFlowTomlNode_GetAllDocuments::GetMemoryUsage(ICrySizer* s) const
+{
+    s->Add(*this);
+}
+
+const char* CFlowTomlNode_GetAllDocuments::GetNodeName()
 {
     return m_nodeName;
 }

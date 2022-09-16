@@ -2,7 +2,7 @@
 
 #include <CryGame/IGameFramework.h>
 
-//! Describes a "NewDocument" node to initialize new TOML documents.
+//! Describes the "NewDocument" node to initialize new TOML documents.
 class CFlowTomlNode_NewDocument : public CFlowBaseNode<eNCT_Singleton>
 {
 public:
@@ -40,7 +40,7 @@ private:
     };
 };
 
-//! Describes a "SetValue" node to set value to TOML document.
+//! Describes the "SetValue" node to set value to TOML document.
 class CFlowTomlNode_SetValue : public CFlowBaseNode<eNCT_Singleton>
 {
 public:
@@ -83,7 +83,7 @@ private:
     };
 };
 
-//! Describes a "GetValue" node to get value from TOML document.
+//! Describes the "GetValue" node to get value from TOML document.
 class CFlowTomlNode_GetValue : public CFlowBaseNode<eNCT_Singleton>
 {
 public:
@@ -126,7 +126,7 @@ private:
     };
 };
 
-//! Describes a "SaveDocument" node to save TOML document to file.
+//! Describes the "SaveDocument" node to save TOML document to file.
 class CFlowTomlNode_SaveDocument : public CFlowBaseNode<eNCT_Singleton>
 {
 public:
@@ -170,7 +170,7 @@ private:
     };
 };
 
-//! Describes a "OpenDocument" node to open TOML document from file.
+//! Describes the "OpenDocument" node to open TOML document from file.
 class CFlowTomlNode_OpenDocument : public CFlowBaseNode<eNCT_Singleton>
 {
 public:
@@ -213,7 +213,7 @@ private:
     };
 };
 
-//! Describes a "CloseDocument" node to close TOML document and invalidate its ID.
+//! Describes the "CloseDocument" node to close TOML document and invalidate its ID.
 class CFlowTomlNode_CloseDocument : public CFlowBaseNode<eNCT_Singleton>
 {
 public:
@@ -253,7 +253,7 @@ private:
     };
 };
 
-//! Describes a "GetDirectoryPathForDocuments" node to get path to the directory where we store documents.
+//! Describes the "GetDirectoryPathForDocuments" node to get path to the directory where we store documents.
 class CFlowTomlNode_GetDirectoryPathForDocuments : public CFlowBaseNode<eNCT_Singleton>
 {
 public:
@@ -293,6 +293,47 @@ private:
     };
 };
 
+//! Describes the "GetAllDocuments" node to get array of filenames of found documents.
+class CFlowTomlNode_GetAllDocuments : public CFlowBaseNode<eNCT_Singleton>
+{
+public:
+    CFlowTomlNode_GetAllDocuments(SActivationInfo* pActInfo) {};
+
+    //! Returns node configuration (input, output ports, description, etc.).
+    virtual void GetConfiguration(SFlowNodeConfig& config) override;
+
+    //! Processes Flow Graph events.
+    virtual void ProcessEvent(EFlowEvent evt, SActivationInfo* pActInfo) override;
+
+    //! Returns memory usage of this object.
+    virtual void GetMemoryUsage(ICrySizer* s) const override;
+
+    //! Returns name of this node.
+    //! 
+    //! \return Name of this node.
+    static const char* GetNodeName();
+
+private:
+
+    //! Name of this node.
+    static inline const char* m_nodeName = "TOML:GetAllDocuments";
+
+    //! Input ports of this node.
+    enum class EInputs : int
+    {
+        Get = 0,
+        DirectoryName,
+    };
+
+    //! Output ports of this node.
+    enum class EOutputs : int
+    {
+        Array = 0,
+        FailedToGetBasePath,
+        DocumentNamesContainPipes,
+    };
+};
+
 REGISTER_FLOW_NODE(CFlowTomlNode_NewDocument::GetNodeName(), CFlowTomlNode_NewDocument)
 REGISTER_FLOW_NODE(CFlowTomlNode_SetValue::GetNodeName(), CFlowTomlNode_SetValue)
 REGISTER_FLOW_NODE(CFlowTomlNode_GetValue::GetNodeName(), CFlowTomlNode_GetValue)
@@ -300,3 +341,4 @@ REGISTER_FLOW_NODE(CFlowTomlNode_SaveDocument::GetNodeName(), CFlowTomlNode_Save
 REGISTER_FLOW_NODE(CFlowTomlNode_OpenDocument::GetNodeName(), CFlowTomlNode_OpenDocument)
 REGISTER_FLOW_NODE(CFlowTomlNode_CloseDocument::GetNodeName(), CFlowTomlNode_CloseDocument)
 REGISTER_FLOW_NODE(CFlowTomlNode_GetDirectoryPathForDocuments::GetNodeName(), CFlowTomlNode_GetDirectoryPathForDocuments)
+REGISTER_FLOW_NODE(CFlowTomlNode_GetAllDocuments::GetNodeName(), CFlowTomlNode_GetAllDocuments)
