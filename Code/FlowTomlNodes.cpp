@@ -330,7 +330,7 @@ void CFlowTomlNode_OpenDocument::GetConfiguration(SFlowNodeConfig& config)
         { 0 }
     };
     static const SOutputPortConfig out_config[] = {
-        OutputPortConfig_Void("DocumentId", _HELP("Executed if successfully opened the file."), "Document Id"),
+        OutputPortConfig<int>("DocumentId", _HELP("Executed if successfully opened the file."), "Document Id"),
         OutputPortConfig_Void("FileNotFound", _HELP("Executed when the specified file/directory does not exist."), "File Not Found"),
         OutputPortConfig_Void("FailedToGetBasePath", _HELP("Executed when failed to get base path (see logs for details)."), "Failed To Get Base Path"),
         OutputPortConfig_Void("ParsingFailed", _HELP("Executed when failed to parse given TOML file (see logs for details)."), "Parsing Failed"),
