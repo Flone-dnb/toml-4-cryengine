@@ -1,6 +1,6 @@
 # TOML 4 CRYENGINE
 
-TODO: add screenshot
+![](nodes.png?raw=true)
 
 This plugin adds new Flow Graph nodes and C++ functions for working with TOML files.
 
