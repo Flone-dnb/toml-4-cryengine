@@ -161,7 +161,7 @@ std::optional<CTomlManager::SaveDocumentError> CTomlManager::SaveDocument(int do
 	}
 
 	// Check that directory name is not empty.
-	if (fileName.empty())
+	if (directoryName.empty())
 	{
 		CloseDocument(documentId);
 		return CTomlManager::SaveDocumentError::DirectoryNameEmpty;
@@ -254,7 +254,7 @@ std::variant<int, CTomlManager::OpenDocumentError> CTomlManager::OpenDocument(co
 	}
 
 	// Check that directory name is not empty.
-	if (fileName.empty())
+	if (directoryName.empty())
 	{
 		return CTomlManager::OpenDocumentError::DirectoryNameEmpty;
 	}
@@ -324,6 +324,61 @@ bool CTomlManager::CloseDocument(int documentId)
 
 	// Remove document ID.
 	m_tomlDocuments.erase(it);
+
+	return true;
+}
+
+bool CTomlManager::RemoveDocument(const std::string& fileName, const std::string& directoryName)
+{
+	// Check that file name is not empty.
+	if (fileName.empty())
+	{
+		return false;
+	}
+
+	// Check that directory name is not empty.
+	if (directoryName.empty())
+	{
+		return false;
+	}
+
+	// Get base directory to store configs.
+	const auto optionalBasePath = GetDirectoryForConfigs();
+	if (!optionalBasePath.has_value())
+	{
+		return false;
+	}
+
+	// Construct directory path.
+	const auto directoryPath = optionalBasePath.value() / std::string(directoryName);
+	if (!std::filesystem::exists(directoryPath)) {
+		return false;
+	}
+
+	// Construct file path.
+	const auto filePath = directoryPath / (std::string(fileName) + ".toml");
+
+	// Handle backup.
+	std::filesystem::path backupFile = filePath;
+	backupFile += m_backupFileExtension;
+
+	// Check that at least one exists.
+	if (!std::filesystem::exists(filePath) && !std::filesystem::exists(backupFile))
+	{
+		return false;
+	}
+
+	// Remove original file.
+	if (std::filesystem::exists(filePath))
+	{
+		std::filesystem::remove(filePath);
+	}
+
+	// Remove backup.
+	if (std::filesystem::exists(backupFile))
+	{
+		std::filesystem::remove(backupFile);
+	}
 
 	return true;
 }

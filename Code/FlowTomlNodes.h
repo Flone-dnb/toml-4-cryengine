@@ -334,6 +334,47 @@ private:
     };
 };
 
+//! Describes the "RemoveDocument" node to remove the document and its backup from disk.
+class CFlowTomlNode_RemoveDocument : public CFlowBaseNode<eNCT_Singleton>
+{
+public:
+    CFlowTomlNode_RemoveDocument(SActivationInfo* pActInfo) {};
+
+    //! Returns node configuration (input, output ports, description, etc.).
+    virtual void GetConfiguration(SFlowNodeConfig& config) override;
+
+    //! Processes Flow Graph events.
+    virtual void ProcessEvent(EFlowEvent evt, SActivationInfo* pActInfo) override;
+
+    //! Returns memory usage of this object.
+    virtual void GetMemoryUsage(ICrySizer* s) const override;
+
+    //! Returns name of this node.
+    //! 
+    //! \return Name of this node.
+    static const char* GetNodeName();
+
+private:
+
+    //! Name of this node.
+    static inline const char* m_nodeName = "TOML:RemoveDocument";
+
+    //! Input ports of this node.
+    enum class EInputs : int
+    {
+        Remove = 0,
+        FileName,
+        DirectoryName,
+    };
+
+    //! Output ports of this node.
+    enum class EOutputs : int
+    {
+        Removed = 0,
+        NotFound,
+    };
+};
+
 REGISTER_FLOW_NODE(CFlowTomlNode_NewDocument::GetNodeName(), CFlowTomlNode_NewDocument)
 REGISTER_FLOW_NODE(CFlowTomlNode_SetValue::GetNodeName(), CFlowTomlNode_SetValue)
 REGISTER_FLOW_NODE(CFlowTomlNode_GetValue::GetNodeName(), CFlowTomlNode_GetValue)
@@ -342,3 +383,4 @@ REGISTER_FLOW_NODE(CFlowTomlNode_OpenDocument::GetNodeName(), CFlowTomlNode_Open
 REGISTER_FLOW_NODE(CFlowTomlNode_CloseDocument::GetNodeName(), CFlowTomlNode_CloseDocument)
 REGISTER_FLOW_NODE(CFlowTomlNode_GetDirectoryPathForDocuments::GetNodeName(), CFlowTomlNode_GetDirectoryPathForDocuments)
 REGISTER_FLOW_NODE(CFlowTomlNode_GetAllDocuments::GetNodeName(), CFlowTomlNode_GetAllDocuments)
+REGISTER_FLOW_NODE(CFlowTomlNode_RemoveDocument::GetNodeName(), CFlowTomlNode_RemoveDocument)

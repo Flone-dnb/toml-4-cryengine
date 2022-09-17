@@ -646,3 +646,69 @@ const char* CFlowTomlNode_GetAllDocuments::GetNodeName()
 {
     return m_nodeName;
 }
+
+void CFlowTomlNode_RemoveDocument::GetConfiguration(SFlowNodeConfig& config)
+{
+    static const SInputPortConfig in_config[] = {
+        InputPortConfig_Void("Remove", _HELP("Removes the document and its backup file (if exists) from the disk."), "Remove"),
+        InputPortConfig<string>("FileName", _HELP("Name of the file without \".toml\" extension for the document."), "File Name"),
+        InputPortConfig<string>("DirectoryName", _HELP("Usually your game name. Directory for documents (will be appended to the base path)."), "Directory Name"),
+        { 0 }
+    };
+    static const SOutputPortConfig out_config[] = {
+        OutputPortConfig_Void("Removed", _HELP("Pipe separated array of document names (without file extensions)."), "Removed"),
+        OutputPortConfig_Void("NotFound", _HELP("Executed when failed to find original document file or its backup file."), "Not Found"),
+        { 0 }
+    };
+    config.sDescription = _HELP("Removes the document and its backup file (if exists) from the disk.");
+    config.pInputPorts = in_config;
+    config.pOutputPorts = out_config;
+    config.SetCategory(EFLN_APPROVED);
+}
+
+void CFlowTomlNode_RemoveDocument::ProcessEvent(EFlowEvent evt, SActivationInfo* pActInfo)
+{
+    switch (evt)
+    {
+    case eFE_Activate:
+        if (IsPortActive(pActInfo, static_cast<int>(EInputs::Remove)))
+        {
+            // Get plugin instance.
+            const auto pPluginInstance = CToml4CryenginePlugin::GetInstance();
+            if (!pPluginInstance)
+            {
+                CryFatalError("Plugin is not initialized.");
+                return;
+            }
+
+            // Get inputs.
+            const auto fileName = GetPortString(pActInfo, static_cast<int>(EInputs::FileName));
+            const auto directoryName = GetPortString(pActInfo, static_cast<int>(EInputs::DirectoryName));
+
+            // Remove document.
+            const auto bRemoved
+                = pPluginInstance->GetTomlManager()->RemoveDocument(std::string(fileName), std::string(directoryName));
+
+            // Process results.
+            if (bRemoved)
+            {
+                ActivateOutput(pActInfo, static_cast<int>(EOutputs::Removed), 0);
+            }
+            else
+            {
+                ActivateOutput(pActInfo, static_cast<int>(EOutputs::NotFound), 0);
+            }
+        }
+        break;
+    }
+}
+
+void CFlowTomlNode_RemoveDocument::GetMemoryUsage(ICrySizer* s) const
+{
+    s->Add(*this);
+}
+
+const char* CFlowTomlNode_RemoveDocument::GetNodeName()
+{
+    return m_nodeName;
+}

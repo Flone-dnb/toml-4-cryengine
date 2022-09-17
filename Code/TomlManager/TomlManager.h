@@ -76,6 +76,14 @@ public:
 	//! or an array of found document file names (without extensions, excluding backup files).
 	static std::variant<std::vector<std::string>, GetAllDocumentsError> GetAllDocuments(const std::string& directoryName);
 
+	//! Removes document and its backup file (if exists) from the disk.
+	//! 
+	//! \param fileName      Name of the file without ".toml" extension for the document.
+	//! \param directoryName Usually your game name. Directory for file (will be appended to the base path).
+	//! 
+	//! \return 'true' if found and removed the document, 'false' if not found.
+	static bool RemoveDocument(const std::string& fileName, const std::string& directoryName);
+
 	//! Initializes a fresh new TOML document and returns this document's unique ID.
 	//! 
 	//! \return New document ID.
